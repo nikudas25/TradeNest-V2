@@ -1,0 +1,117 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
+import { QuantityStepper } from "../components/QuantityStepper";
+import { useShop } from "../context/ShopContext";
+import { formatCurrency } from "../data/formatters";
+
+
+export function CartPage() {
+  const { cart, updateCartItem, removeCartItem, applyCoupon } = useShop();
+  const [couponMessage, setCouponMessage] = useState("");
+
+  async function handleCouponSubmit(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const code = formData.get("code");
+    if (!code) {
+      return;
+    }
+    try {
+      await applyCoupon(String(code));
+      setCouponMessage("Coupon applied.");
+      event.currentTarget.reset();
+    } catch (error) {
+      setCouponMessage(error.message);
+    }
+  }
+
+  if (!cart.items.length) {
+    return (
+      <div className="container empty-panel">
+        <h1>Your cart is empty</h1>
+        <p>Add products from the catalog to start building an order.</p>
+        <Link className="button button--primary" to="/shop">
+          Browse products
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-stack container">
+      <div className="section-heading">
+        <div>
+          <p className="section-eyebrow">Cart</p>
+          <h1>Review your escrow cart</h1>
+        </div>
+      </div>
+
+      <div className="cart-layout">
+        <section className="cart-items">
+          {cart.items.map((item) => (
+            <article className="cart-item" key={item.id}>
+              <img alt={item.product.name} src={item.product.primary_image || item.product.thumbnail_url} />
+              <div className="cart-item-copy">
+                <h3>{item.product.name}</h3>
+                <p>
+                  {item.product.brand} • {item.variant?.title || item.product.category}
+                </p>
+                <strong>{formatCurrency(item.unit_price)}</strong>
+              </div>
+              <div className="cart-item-actions">
+                <QuantityStepper
+                  onChange={(value) => updateCartItem(item.id, value)}
+                  value={item.quantity}
+                />
+                <button className="text-button" onClick={() => removeCartItem(item.id)} type="button">
+                  Remove
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <aside className="order-summary">
+          <h2>Order summary</h2>
+          <div className="summary-row">
+            <span>Seller</span>
+            <strong>{cart.items[0]?.product?.seller_name || "TradeNest seller"}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Subtotal</span>
+            <strong>{formatCurrency(cart.subtotal)}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Shipping</span>
+            <strong>{formatCurrency(cart.shipping_fee)}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Discount</span>
+            <strong>-{formatCurrency(cart.discount_total)}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Tax</span>
+            <strong>{formatCurrency(cart.tax_total)}</strong>
+          </div>
+          <div className="summary-row summary-row--total">
+            <span>Total</span>
+            <strong>{formatCurrency(cart.grand_total)}</strong>
+          </div>
+
+          <form className="coupon-form" onSubmit={handleCouponSubmit}>
+            <input name="code" placeholder="Coupon code" type="text" />
+            <button className="button button--secondary" type="submit">
+              Apply
+            </button>
+          </form>
+          {couponMessage ? <p className="helper-copy">{couponMessage}</p> : null}
+
+          <Link className="button button--primary button--full" to="/checkout">
+            Proceed to escrow
+          </Link>
+        </aside>
+      </div>
+    </div>
+  );
+}
