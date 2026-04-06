@@ -43,15 +43,15 @@ export function Footer() {
         <div>
           <h4>Stay in the loop</h4>
           <form className="newsletter-form" onSubmit={handleSubmit}>
-            <input
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email address"
-              type="email"
-              value={email}
-            />
-            <button className="button button--primary" type="submit">
-              Subscribe
-            </button>
+            <div className="subscribe-box">
+              <input
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="Email address"
+                type="email"
+                value={email}
+              />
+            </div>
+            <button className="submit-button" type="submit">Subscribe</button>
           </form>
           <p className="footer-copy">Escrow updates, seller growth tips, and high-intent buyer traffic drops.</p>
         </div>

@@ -13,12 +13,24 @@ export function HomePage() {
     <div className="page-stack">
       <section className="hero-section container">
         <div className="hero-copy-panel">
-          <p className="section-eyebrow">Trusted resale marketplace</p>
-          <h1>Buy rare finds and resell confidently with escrow at the center.</h1>
-          <p>
-            TradeNest helps independent sellers list one-of-one inventory while giving buyers
-            condition notes, seller trust signals, and protected escrow payouts instead of blind transfers.
-          </p>
+          <div className="hero-copy-inner">
+            <div className="hero-copy-text">
+              <p className="section-eyebrow">Trusted resale marketplace</p>
+              <h1>Less to keep, more to share discover value, rare and fair.</h1>
+              <p>
+                Give your unused items a new purpose and pass them on to someone who truly needs them,
+                while discovering unique pieces that perfectly fit your own story.
+                TradeNest helps independent sellers list one-of-one inventory while giving buyers
+                condition notes, seller trust signals, and protected escrow payouts instead of blind transfers.
+              </p>
+            </div>
+            <div className="hero-copy-image">
+              <img
+                src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=520&q=80"
+                alt="Vintage Omega Dress Watch"
+              />
+            </div>
+          </div>
           <div className="hero-actions">
             <Link className="button button--primary" to="/shop">
               Browse listings
@@ -41,35 +53,6 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="hero-showcase">
-          <div className="hero-highlight-card">
-            <p className="section-eyebrow">What’s moving now</p>
-            <h3>High-trust resale inventory presented with condition, seller, and escrow context.</h3>
-            <div className="hero-stat-row">
-              <div>
-                <strong>{homeData.stats?.product_count || 0}+</strong>
-                <span>Active resale listings</span>
-              </div>
-              <div>
-                <strong>{homeData.stats?.category_count || 0}</strong>
-                <span>Resale categories</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="hero-product-rail">
-            {(homeData.new_arrivals || []).slice(0, 2).map((product) => (
-              <ProductCard
-                compact
-                inWishlist={isWishlisted(product.id)}
-                key={product.id}
-                onAddToCart={addToCart}
-                onToggleWishlist={toggleWishlist}
-                product={product}
-              />
-            ))}
-          </div>
-        </div>
       </section>
 
       <section className="container">

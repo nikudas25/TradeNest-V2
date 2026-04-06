@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from corsheaders.defaults import default_headers
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.commerce",
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
@@ -136,7 +138,9 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 12,
 }
 
-CORS_ALLOWED_ORIGINS = get_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOW_HEADERS = ["*"]
+
+CORS_ALLOW_ALL_ORIGINS = True
 CSRF_TRUSTED_ORIGINS = get_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
