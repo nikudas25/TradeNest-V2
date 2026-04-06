@@ -254,6 +254,11 @@ export const api = {
   getSellerOrders() {
     return request("/commerce/seller/orders/");
   },
+  cancelOrder(orderNumber) {
+    return request(`/commerce/orders/${orderNumber}/cancel/`, {
+      method: "POST",
+    });
+  },
   shipOrder(orderNumber, trackingNumber) {
     return request(`/commerce/seller/orders/${orderNumber}/ship/`, {
       method: "POST",

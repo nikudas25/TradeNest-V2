@@ -19,6 +19,7 @@ export function Header() {
   const location = useLocation();
   const { cart, wishlist, user, logout, notice, error } = useShop();
   const [search, setSearch] = useState("");
+  const visibleNavItems = navItems.filter((item) => item.to !== "/orders" || user);
 
   function handleSearchSubmit(event) {
     event.preventDefault();
@@ -33,7 +34,7 @@ export function Header() {
           <SparkIcon size={16} />
           TradeNest protects marketplace orders with escrow until buyers accept the item.
         </span>
-        <span>One seller per cart for safer resale checkout</span>
+        <span>Mix sellers in one cart and TradeNest will split checkout into protected escrow orders</span>
       </div>
 
       {notice || error ? <div className={`flash-banner${error ? " is-error" : ""}`}>{error || notice}</div> : null}
@@ -73,7 +74,7 @@ export function Header() {
       <div className="header-nav-wrap">
         <nav className="header-nav container">
           <div className="header-nav-links">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 className={({ isActive }) =>
                   isActive || (item.to === "/shop" && location.pathname.startsWith("/product"))

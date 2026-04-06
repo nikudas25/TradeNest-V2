@@ -24,41 +24,69 @@ export function CheckoutPage() {
   const [shippingAddress, setShippingAddress] = useState(initialAddress);
   const [billingAddress, setBillingAddress] = useState(initialAddress);
   const [sameAsShipping, setSameAsShipping] = useState(true);
-  const [order, setOrder] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const sellerGroups = Object.values(
+    cart.items.reduce((groups, item) => {
+      const sellerKey = item.product?.seller?.id || item.product?.seller_name || item.product?.id;
+      if (!groups[sellerKey]) {
+        groups[sellerKey] = {
+          seller_name: item.product?.seller?.store_name || item.product?.seller_name || "TradeNest seller",
+          items: [],
+        };
+      }
+      groups[sellerKey].items.push(item);
+      return groups;
+    }, {}),
+  );
 
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitting(true);
-    const placedOrder = await checkout({
-      email: user.email,
-      phone_number: shippingAddress.phone_number,
-      shipping_address: shippingAddress,
-      billing_address: sameAsShipping ? shippingAddress : billingAddress,
-      same_as_shipping: sameAsShipping,
-      payment_method: "escrow",
-      notes: event.currentTarget.notes.value,
-    });
-    setOrder(placedOrder);
-    setSubmitting(false);
+    try {
+      const placedOrder = await checkout({
+        email: user.email,
+        phone_number: shippingAddress.phone_number,
+        shipping_address: shippingAddress,
+        billing_address: sameAsShipping ? shippingAddress : billingAddress,
+        same_as_shipping: sameAsShipping,
+        payment_method: "escrow",
+        notes: event.currentTarget.notes.value,
+      });
+      setConfirmation(placedOrder);
+    } catch {
+      // Flash messaging is handled in shared shop state.
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function updateAddress(setter, field, value) {
     setter((current) => ({ ...current, [field]: value }));
   }
 
-  if (order) {
+  if (confirmation) {
+    const placedOrders = confirmation.orders || [];
     return (
       <div className="container success-panel">
         <p className="section-eyebrow">Order confirmed</p>
-        <h1>{order.order_number}</h1>
+        <h1>{placedOrders.length > 1 ? `${placedOrders.length} escrow orders created` : placedOrders[0]?.order_number}</h1>
         <p>
-          Escrow status: <strong>{order.escrow?.status || order.payment_status}</strong>
+          Sellers involved: <strong>{placedOrders.length}</strong>
         </p>
-        <p>
-          Estimated delivery: <strong>{new Date(order.estimated_delivery).toLocaleDateString("en-IN")}</strong>
-        </p>
-        <p>Total charged: {formatCurrency(order.grand_total)}</p>
+        <div className="review-list">
+          {placedOrders.map((item) => (
+            <article className="review-card" key={item.order_number}>
+              <strong>{item.order_number}</strong>
+              <p>{item.seller_name}</p>
+              <span>
+                Escrow: {item.escrow?.status || item.payment_status} • ETA{" "}
+                {new Date(item.estimated_delivery).toLocaleDateString("en-IN")}
+              </span>
+            </article>
+          ))}
+        </div>
+        <p>Total charged: {formatCurrency(confirmation.grand_total)}</p>
         <div className="hero-actions">
           <Link className="button button--primary" to="/orders">
             View orders
@@ -171,15 +199,23 @@ export function CheckoutPage() {
         <aside className="order-summary">
           <h2>Summary</h2>
           <div className="summary-row">
-            <span>Seller</span>
-            <strong>{cart.items[0]?.product?.seller_name || "TradeNest seller"}</strong>
+            <span>Seller orders</span>
+            <strong>{sellerGroups.length}</strong>
           </div>
-          {cart.items.map((item) => (
-            <div className="summary-row" key={item.id}>
-              <span>
-                {item.product.name} × {item.quantity}
-              </span>
-              <strong>{formatCurrency(item.total_price)}</strong>
+          {sellerGroups.map((group) => (
+            <div className="checkout-seller-group" key={group.seller_name}>
+              <div className="summary-row">
+                <span>{group.seller_name}</span>
+                <strong>{group.items.length} items</strong>
+              </div>
+              {group.items.map((item) => (
+                <div className="summary-row" key={item.id}>
+                  <span>
+                    {item.product.name} × {item.quantity}
+                  </span>
+                  <strong>{formatCurrency(item.total_price)}</strong>
+                </div>
+              ))}
             </div>
           ))}
           <div className="summary-row">

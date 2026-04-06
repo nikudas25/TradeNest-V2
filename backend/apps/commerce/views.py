@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -32,7 +33,13 @@ from .serializers import (
     WishlistItemSerializer,
     resolve_address_snapshot,
 )
-from .services import calculate_cart_totals, get_or_create_cart_for_request
+from .services import (
+    allocate_discount_by_subtotal,
+    calculate_cart_totals,
+    calculate_totals_for_items,
+    get_or_create_cart_for_request,
+    group_cart_items_by_seller,
+)
 
 
 class CartView(APIView):
@@ -55,7 +62,7 @@ class AddToCartView(APIView):
         product = serializer.validated_data["product"]
         variant = serializer.validated_data["variant"]
         quantity = serializer.validated_data["quantity"]
-        existing_item = cart.items.select_related("product__seller").first()
+        existing_item = cart.items.filter(product=product, variant=variant).first()
 
         if product.resale_status != Product.ResaleStatus.ACTIVE:
             return Response(
@@ -67,16 +74,10 @@ class AddToCartView(APIView):
                 {"detail": "This listing is missing seller information."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if existing_item and existing_item.product.seller_id != product.seller_id:
-            return Response(
-                {
-                    "detail": "TradeNest escrow checkout supports one seller per cart. Finish this order or clear the cart before adding another seller's listing."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if variant and variant.stock_quantity < quantity:
+        requested_quantity = quantity + (existing_item.quantity if existing_item else 0)
+        if variant and variant.stock_quantity < requested_quantity:
             return Response({"detail": "Selected variant does not have enough stock."}, status=status.HTTP_400_BAD_REQUEST)
-        if not variant and product.stock_quantity < quantity:
+        if not variant and product.stock_quantity < requested_quantity:
             return Response({"detail": "This listing does not have enough stock."}, status=status.HTTP_400_BAD_REQUEST)
 
         cart_item, created = cart.items.get_or_create(
@@ -100,8 +101,13 @@ class CartItemDetailView(APIView):
         serializer = UpdateCartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         cart, session_key = get_or_create_cart_for_request(request)
-        item = get_object_or_404(cart.items, pk=item_id)
-        item.quantity = serializer.validated_data["quantity"]
+        item = get_object_or_404(cart.items.select_related("product", "variant"), pk=item_id)
+        quantity = serializer.validated_data["quantity"]
+        if item.variant and item.variant.stock_quantity < quantity:
+            return Response({"detail": "Selected variant does not have enough stock."}, status=status.HTTP_400_BAD_REQUEST)
+        if not item.variant and item.product.stock_quantity < quantity:
+            return Response({"detail": "This listing does not have enough stock."}, status=status.HTTP_400_BAD_REQUEST)
+        item.quantity = quantity
         item.save(update_fields=["quantity", "updated_at"])
         data = CartSerializer(cart).data
         data["session_key"] = session_key
@@ -181,6 +187,7 @@ class RecentlyViewedView(APIView):
 class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
         cart, session_key = get_or_create_cart_for_request(request)
         if not cart.items.exists():
@@ -190,13 +197,31 @@ class CheckoutView(APIView):
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
         user = request.user
-        first_item = cart.items.select_related("product__seller").first()
-        seller = first_item.product.seller if first_item else None
-        if not seller:
+        cart_items = list(
+            cart.items.select_related(
+                "product",
+                "product__seller",
+                "product__brand",
+                "product__category",
+                "variant",
+            )
+        )
+        if any(not item.product or not item.product.seller for item in cart_items):
             return Response(
-                {"detail": "This cart cannot be checked out because the seller is missing."},
+                {"detail": "One or more cart items are missing seller information."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        for item in cart_items:
+            if item.variant and item.variant.stock_quantity < item.quantity:
+                return Response(
+                    {"detail": f"{item.product.name} no longer has enough stock for the selected variant."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not item.variant and item.product.stock_quantity < item.quantity:
+                return Response(
+                    {"detail": f"{item.product.name} no longer has enough stock."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         shipping_address = resolve_address_snapshot(
             user,
@@ -216,75 +241,104 @@ class CheckoutView(APIView):
         payment_method = "escrow"
         payment_status = Order.PaymentStatus.ESCROW_HELD
         order_status = Order.Status.AWAITING_SHIPMENT
-
-        order = Order.objects.create(
-            user=user,
-            seller=seller,
-            email=payload.get("email") or user.email,
-            phone_number=payload.get("phone_number") or shipping_address.get("phone_number", ""),
-            status=order_status,
-            payment_status=payment_status,
-            payment_method=payment_method,
-            coupon=cart.coupon,
-            subtotal=totals["subtotal"],
-            discount_total=totals["discount_total"],
-            shipping_fee=totals["shipping_fee"],
-            tax_total=totals["tax_total"],
-            grand_total=totals["grand_total"],
-            shipping_address=shipping_address,
-            billing_address=billing_address,
-            notes=payload.get("notes", ""),
-            estimated_delivery=timezone.now().date() + timedelta(days=5),
-        )
-
-        for cart_item in cart.items.select_related("product", "variant", "product__brand", "product__category"):
-            OrderItem.objects.create(
-                order=order,
-                product=cart_item.product,
-                variant=cart_item.variant,
-                product_name=cart_item.product.name,
-                sku=cart_item.variant.sku if cart_item.variant else cart_item.product.sku,
-                quantity=cart_item.quantity,
-                unit_price=cart_item.unit_price,
-                line_total=cart_item.total_price,
-                product_snapshot={
-                    "slug": cart_item.product.slug,
-                    "image": cart_item.product.primary_image,
-                    "brand": cart_item.product.brand.name if cart_item.product.brand else "",
-                    "category": cart_item.product.category.name,
-                },
+        grouped_items = group_cart_items_by_seller(cart_items)
+        group_summaries = []
+        for group in grouped_items:
+            base_totals = calculate_totals_for_items(group["items"])
+            group_summaries.append(
+                {
+                    "seller": group["seller"],
+                    "items": group["items"],
+                    "subtotal": base_totals["subtotal"],
+                }
             )
-            if cart_item.product:
-                cart_item.product.stock_quantity = max(cart_item.product.stock_quantity - cart_item.quantity, 0)
-                if cart_item.product.stock_quantity == 0:
-                    cart_item.product.resale_status = Product.ResaleStatus.RESERVED
+
+        allocated_discounts = allocate_discount_by_subtotal(group_summaries, totals["discount_total"])
+        created_orders = []
+
+        for index, group in enumerate(group_summaries):
+            order_totals = calculate_totals_for_items(group["items"], discount_total=allocated_discounts[index])
+            order = Order.objects.create(
+                user=user,
+                seller=group["seller"],
+                email=payload.get("email") or user.email,
+                phone_number=payload.get("phone_number") or shipping_address.get("phone_number", ""),
+                status=order_status,
+                payment_status=payment_status,
+                payment_method=payment_method,
+                coupon=cart.coupon,
+                subtotal=order_totals["subtotal"],
+                discount_total=order_totals["discount_total"],
+                shipping_fee=order_totals["shipping_fee"],
+                tax_total=order_totals["tax_total"],
+                grand_total=order_totals["grand_total"],
+                shipping_address=shipping_address,
+                billing_address=billing_address,
+                notes=payload.get("notes", ""),
+                estimated_delivery=timezone.now().date() + timedelta(days=5),
+            )
+
+            for cart_item in group["items"]:
+                OrderItem.objects.create(
+                    order=order,
+                    product=cart_item.product,
+                    variant=cart_item.variant,
+                    product_name=cart_item.product.name,
+                    sku=cart_item.variant.sku if cart_item.variant else cart_item.product.sku,
+                    quantity=cart_item.quantity,
+                    unit_price=cart_item.unit_price,
+                    line_total=cart_item.total_price,
+                    product_snapshot={
+                        "slug": cart_item.product.slug,
+                        "image": cart_item.product.primary_image,
+                        "brand": cart_item.product.brand.name if cart_item.product.brand else "",
+                        "category": cart_item.product.category.name,
+                    },
+                )
+                if cart_item.variant:
+                    cart_item.variant.stock_quantity = max(cart_item.variant.stock_quantity - cart_item.quantity, 0)
+                    cart_item.variant.save(update_fields=["stock_quantity", "updated_at"])
+                    remaining_variant_stock = (
+                        cart_item.product.variants.aggregate(total=Sum("stock_quantity"))["total"] or 0
+                    )
+                    cart_item.product.stock_quantity = remaining_variant_stock
+                    cart_item.product.resale_status = (
+                        Product.ResaleStatus.RESERVED
+                        if remaining_variant_stock == 0
+                        else Product.ResaleStatus.ACTIVE
+                    )
+                else:
+                    cart_item.product.stock_quantity = max(cart_item.product.stock_quantity - cart_item.quantity, 0)
+                    if cart_item.product.stock_quantity == 0:
+                        cart_item.product.resale_status = Product.ResaleStatus.RESERVED
                 cart_item.product.save(update_fields=["stock_quantity", "resale_status", "updated_at"])
 
-        Payment.objects.create(
-            order=order,
-            provider="tradenest-escrow",
-            status=payment_status,
-            amount=order.grand_total,
-            payload={
-                "method": payment_method,
-                "captured": False,
-                "held_in_escrow": True,
-                "session_key": session_key,
-            },
-        )
-        EscrowTransaction.objects.create(
-            order=order,
-            buyer=user,
-            seller=seller,
-            status=EscrowTransaction.Status.FUNDED,
-            held_amount=order.grand_total,
-        )
+            Payment.objects.create(
+                order=order,
+                provider="tradenest-escrow",
+                status=payment_status,
+                amount=order.grand_total,
+                payload={
+                    "method": payment_method,
+                    "captured": False,
+                    "held_in_escrow": True,
+                    "session_key": session_key,
+                },
+            )
+            EscrowTransaction.objects.create(
+                order=order,
+                buyer=user,
+                seller=group["seller"],
+                status=EscrowTransaction.Status.FUNDED,
+                held_amount=order.grand_total,
+            )
 
-        OrderStatusHistory.objects.create(
-            order=order,
-            status=order.status,
-            note="Escrow funded and seller notified to ship.",
-        )
+            OrderStatusHistory.objects.create(
+                order=order,
+                status=order.status,
+                note="Escrow funded and seller notified to ship.",
+            )
+            created_orders.append(order)
 
         if cart.coupon:
             cart.coupon.usage_count += 1
@@ -294,8 +348,12 @@ class CheckoutView(APIView):
         cart.coupon = None
         cart.save(update_fields=["coupon", "updated_at"])
 
-        response_data = OrderSerializer(order).data
-        response_data["session_key"] = session_key
+        response_data = {
+            "orders": OrderSerializer(created_orders, many=True).data,
+            "order_count": len(created_orders),
+            "grand_total": totals["grand_total"],
+            "session_key": session_key,
+        }
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -404,13 +462,69 @@ class BuyerConfirmReceiptView(APIView):
 
         for order_item in order.items.select_related("product"):
             if order_item.product:
-                order_item.product.resale_status = Product.ResaleStatus.SOLD
+                order_item.product.resale_status = (
+                    Product.ResaleStatus.SOLD
+                    if order_item.product.stock_quantity == 0
+                    else Product.ResaleStatus.ACTIVE
+                )
                 order_item.product.save(update_fields=["resale_status", "updated_at"])
 
         OrderStatusHistory.objects.create(
             order=order,
             status=order.status,
             note="Buyer accepted the item and escrow was released.",
+        )
+        return Response(OrderSerializer(order).data)
+
+
+class BuyerCancelOrderView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, order_number):
+        order = get_object_or_404(Order, order_number=order_number, user=request.user)
+        if order.status not in {Order.Status.PENDING, Order.Status.AWAITING_SHIPMENT}:
+            return Response(
+                {"detail": "Only orders that have not shipped yet can be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = Order.Status.CANCELLED
+        order.payment_status = Order.PaymentStatus.REFUNDED
+        order.save(update_fields=["status", "payment_status", "updated_at"])
+
+        payment = order.payments.order_by("-created_at").first()
+        if payment:
+            payment.status = Order.PaymentStatus.REFUNDED
+            payment.payload["cancelled_by_buyer"] = True
+            payment.payload["refunded_at"] = timezone.now().isoformat()
+            payment.save(update_fields=["status", "payload", "updated_at"])
+
+        if hasattr(order, "escrow"):
+            order.escrow.status = EscrowTransaction.Status.REFUNDED
+            order.escrow.released_at = timezone.now()
+            order.escrow.save(update_fields=["status", "released_at", "updated_at"])
+
+        for order_item in order.items.select_related("product", "variant", "product__seller"):
+            if order_item.variant:
+                order_item.variant.stock_quantity += order_item.quantity
+                order_item.variant.save(update_fields=["stock_quantity", "updated_at"])
+                if order_item.product:
+                    total_variant_stock = order_item.product.variants.aggregate(total=Sum("stock_quantity"))["total"] or 0
+                    order_item.product.stock_quantity = total_variant_stock
+                    if total_variant_stock > 0:
+                        order_item.product.resale_status = Product.ResaleStatus.ACTIVE
+                    order_item.product.save(update_fields=["stock_quantity", "resale_status", "updated_at"])
+            elif order_item.product:
+                order_item.product.stock_quantity += order_item.quantity
+                if order_item.product.stock_quantity > 0:
+                    order_item.product.resale_status = Product.ResaleStatus.ACTIVE
+                order_item.product.save(update_fields=["stock_quantity", "resale_status", "updated_at"])
+
+        OrderStatusHistory.objects.create(
+            order=order,
+            status=order.status,
+            note="Buyer cancelled the order before shipment.",
         )
         return Response(OrderSerializer(order).data)
 

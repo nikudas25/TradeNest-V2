@@ -1,4 +1,5 @@
 import uuid
+from collections import OrderedDict
 from decimal import Decimal, ROUND_HALF_UP
 
 from apps.commerce.models import Cart, CartItem
@@ -11,6 +12,77 @@ TAX_RATE = Decimal("0.12")
 
 def money(value):
     return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_shipping_fee_for_items(items):
+    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
+    if subtotal == 0:
+        return Decimal("0.00")
+    if subtotal >= FREE_SHIPPING_THRESHOLD or any(item.product.free_shipping for item in items):
+        return Decimal("0.00")
+    return STANDARD_SHIPPING_FEE
+
+
+def calculate_totals_for_items(items, coupon=None, discount_total=None):
+    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
+    shipping_fee = calculate_shipping_fee_for_items(items)
+
+    resolved_discount = discount_total
+    if resolved_discount is None:
+        resolved_discount = coupon.calculate_discount(subtotal, shipping_fee) if coupon else Decimal("0.00")
+
+    taxable_amount = max(subtotal - min(resolved_discount, subtotal), Decimal("0.00"))
+    tax_total = taxable_amount * TAX_RATE
+    grand_total = subtotal + shipping_fee + tax_total - resolved_discount
+
+    return {
+        "subtotal": money(subtotal),
+        "shipping_fee": money(shipping_fee),
+        "discount_total": money(resolved_discount),
+        "tax_total": money(tax_total),
+        "grand_total": money(grand_total),
+    }
+
+
+def group_cart_items_by_seller(items):
+    grouped = OrderedDict()
+    for item in items:
+        seller = item.product.seller if item.product else None
+        seller_id = seller.id if seller else 0
+        if seller_id not in grouped:
+            grouped[seller_id] = {
+                "seller": seller,
+                "items": [],
+            }
+        grouped[seller_id]["items"].append(item)
+    return list(grouped.values())
+
+
+def allocate_discount_by_subtotal(groups, total_discount):
+    if not groups or total_discount <= 0:
+        return [Decimal("0.00")] * len(groups)
+
+    total_subtotal = sum((group["subtotal"] for group in groups), Decimal("0.00"))
+    if total_subtotal <= 0:
+        return [Decimal("0.00")] * len(groups)
+
+    allocations = []
+    remaining_discount = money(total_discount)
+    remaining_subtotal = total_subtotal
+
+    for index, group in enumerate(groups):
+        if index == len(groups) - 1:
+            allocation = remaining_discount
+        else:
+            allocation = (
+                money((group["subtotal"] / remaining_subtotal) * remaining_discount)
+                if remaining_subtotal > 0
+                else Decimal("0.00")
+            )
+            remaining_discount -= allocation
+            remaining_subtotal -= group["subtotal"]
+        allocations.append(allocation)
+    return allocations
 
 
 def get_session_key(request):
@@ -56,20 +128,16 @@ def get_or_create_cart_for_request(request):
 
 
 def calculate_cart_totals(cart):
-    subtotal = sum((item.total_price for item in cart.items.all()), Decimal("0.00"))
-    if subtotal == 0:
-        shipping_fee = Decimal("0.00")
-    elif subtotal >= FREE_SHIPPING_THRESHOLD or any(
-        item.product.free_shipping for item in cart.items.select_related("product")
-    ):
-        shipping_fee = Decimal("0.00")
-    else:
-        shipping_fee = STANDARD_SHIPPING_FEE
+    items = list(cart.items.select_related("product", "product__seller", "variant"))
+    if not items:
+        return calculate_totals_for_items([], coupon=cart.coupon)
 
-    discount_total = Decimal("0.00")
-    if cart.coupon:
-        discount_total = cart.coupon.calculate_discount(subtotal, shipping_fee)
-
+    subtotal = sum((item.total_price for item in items), Decimal("0.00"))
+    shipping_fee = sum(
+        (calculate_shipping_fee_for_items(group["items"]) for group in group_cart_items_by_seller(items)),
+        Decimal("0.00"),
+    )
+    discount_total = cart.coupon.calculate_discount(subtotal, shipping_fee) if cart.coupon else Decimal("0.00")
     taxable_amount = max(subtotal - min(discount_total, subtotal), Decimal("0.00"))
     tax_total = taxable_amount * TAX_RATE
     grand_total = subtotal + shipping_fee + tax_total - discount_total

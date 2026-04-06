@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, get_user_model
+from django.db.models import Q
 from rest_framework import serializers
 
 from .models import Address, SellerProfile
@@ -122,13 +123,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get("email", "").lower()
+        identifier = attrs.get("identifier", "").strip()
         password = attrs.get("password")
-        user = User.objects.filter(email__iexact=email).first()
+        user = User.objects.filter(
+            Q(username__iexact=identifier) | Q(phone_number=identifier) | Q(email__iexact=identifier)
+        ).first()
         if not user:
             raise serializers.ValidationError("Invalid credentials.")
         authenticated = authenticate(username=user.username, password=password)

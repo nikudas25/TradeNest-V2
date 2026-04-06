@@ -5,13 +5,37 @@ import { formatCurrency, formatDate } from "../data/formatters";
 
 
 export function OrdersPage() {
-  const { orders, token, confirmReceipt, openDispute } = useShop();
+  const { orders, token, booting, cancelOrder, confirmReceipt, openDispute } = useShop();
+
+  async function handleCancelOrder(orderNumber) {
+    try {
+      await cancelOrder(orderNumber);
+    } catch {
+      // Flash messaging is handled in shared shop state.
+    }
+  }
+
+  if (booting) {
+    return <div className="container empty-panel">Loading orders...</div>;
+  }
+
+  if (!token) {
+    return (
+      <div className="container empty-panel">
+        <h1>Sign in to view your orders</h1>
+        <p>Your order history is only available to logged-in buyers.</p>
+        <Link className="button button--primary" to="/account">
+          Sign in
+        </Link>
+      </div>
+    );
+  }
 
   if (!orders.length) {
     return (
       <div className="container empty-panel">
         <h1>No orders yet</h1>
-        <p>{token ? "Your order history will show up here." : "Sign in or place a demo order to populate this view."}</p>
+        <p>Your order history will show up here.</p>
         <Link className="button button--primary" to="/shop">
           Start shopping
         </Link>
@@ -66,6 +90,17 @@ export function OrdersPage() {
                 </div>
               ))}
             </div>
+            {["pending", "awaiting_shipment"].includes(order.status) ? (
+              <div className="hero-actions">
+                <button
+                  className="button button--ghost"
+                  onClick={() => handleCancelOrder(order.order_number)}
+                  type="button"
+                >
+                  Cancel order
+                </button>
+              </div>
+            ) : null}
             {order.status === "shipped" ? (
               <div className="hero-actions">
                 <button className="button button--secondary" onClick={() => confirmReceipt(order.order_number)} type="button">

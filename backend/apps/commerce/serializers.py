@@ -42,6 +42,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
     item_count = serializers.ReadOnlyField()
+    seller_count = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
     shipping_fee = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
@@ -56,6 +57,7 @@ class CartSerializer(serializers.ModelSerializer):
             "session_key",
             "coupon_code",
             "item_count",
+            "seller_count",
             "items",
             "subtotal",
             "shipping_fee",
@@ -67,6 +69,14 @@ class CartSerializer(serializers.ModelSerializer):
 
     def _totals(self, obj):
         return calculate_cart_totals(obj)
+
+    def get_seller_count(self, obj):
+        return (
+            obj.items.exclude(product__seller_id__isnull=True)
+            .values("product__seller_id")
+            .distinct()
+            .count()
+        )
 
     def get_subtotal(self, obj):
         return self._totals(obj)["subtotal"]
