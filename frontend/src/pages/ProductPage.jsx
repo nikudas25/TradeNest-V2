@@ -10,7 +10,14 @@ import { formatCurrency, formatDate } from "../data/formatters";
 
 export function ProductPage() {
   const { slug } = useParams();
-  const { addToCart, toggleWishlist, isWishlisted, getProductFallback, trackRecentlyViewed, token } = useShop();
+  const {
+    addToCart,
+    getProductFallback,
+    isWishlisted,
+    toggleWishlist,
+    token,
+    trackRecentlyViewed,
+  } = useShop();
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -59,6 +66,14 @@ export function ProductPage() {
       setReview({ title: "", rating: 5, body: "" });
     } catch (error) {
       setReviewMessage(error.message);
+    }
+  }
+
+  async function handleAddToCart() {
+    try {
+      await addToCart(product, selectedVariant, quantity);
+    } catch {
+      // Flash messaging is handled in shared shop state.
     }
   }
 
@@ -127,7 +142,7 @@ export function ProductPage() {
             <QuantityStepper onChange={setQuantity} value={quantity} />
             <button
               className="button button--primary"
-              onClick={() => addToCart(product, selectedVariant, quantity)}
+              onClick={handleAddToCart}
               type="button"
             >
               Add to cart

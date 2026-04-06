@@ -64,7 +64,7 @@ export function Header() {
           <SparkIcon size={16} />
           TradeNest protects marketplace orders with escrow until buyers accept the item.
         </span>
-        <span>One seller per cart for safer resale checkout</span>
+        <span>Mix sellers in one cart and TradeNest will split checkout into protected escrow orders</span>
       </div>
 
       {notice || error ? <div className={`flash-banner${error ? " is-error" : ""}`}>{error || notice}</div> : null}

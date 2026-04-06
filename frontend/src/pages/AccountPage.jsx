@@ -30,11 +30,12 @@ const initialAddress = {
 
 
 export function AccountPage() {
-  const { user, login, register, updateProfile, saveAddress } = useShop();
+  const { login, register, saveAddress, updateProfile, user } = useShop();
   const [mode, setMode] = useState("login");
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState(initialProfile);
   const [authForm, setAuthForm] = useState({
+    identifier: "",
     username: "",
     first_name: "",
     last_name: "",
@@ -63,7 +64,7 @@ export function AccountPage() {
     event.preventDefault();
     try {
       if (mode === "login") {
-        await login({ email: authForm.email, password: authForm.password });
+        await login({ identifier: authForm.identifier, password: authForm.password });
         setMessage("");
         return;
       }
@@ -134,21 +135,33 @@ export function AccountPage() {
                 value={authForm.store_name}
               />
             </>
-          ) : null}
+          ) : (
+            <input
+              onChange={(event) => setAuthForm((current) => ({ ...current, identifier: event.target.value }))}
+              placeholder="Username or phone number"
+              required
+              type="text"
+              value={authForm.identifier}
+            />
+          )}
 
-          <input
-            onChange={(event) => setAuthForm((current) => ({ ...current, email: event.target.value }))}
-            placeholder="Email address"
-            required
-            type="email"
-            value={authForm.email}
-          />
-          <input
-            onChange={(event) => setAuthForm((current) => ({ ...current, phone_number: event.target.value }))}
-            placeholder="Phone number"
-            type="text"
-            value={authForm.phone_number}
-          />
+          {mode === "register" ? (
+            <>
+              <input
+                onChange={(event) => setAuthForm((current) => ({ ...current, email: event.target.value }))}
+                placeholder="Email address"
+                required
+                type="email"
+                value={authForm.email}
+              />
+              <input
+                onChange={(event) => setAuthForm((current) => ({ ...current, phone_number: event.target.value }))}
+                placeholder="Phone number"
+                type="text"
+                value={authForm.phone_number}
+              />
+            </>
+          ) : null}
           <input
             onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
             placeholder="Password"

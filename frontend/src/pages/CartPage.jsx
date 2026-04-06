@@ -9,6 +9,9 @@ import { formatCurrency } from "../data/formatters";
 export function CartPage() {
   const { cart, updateCartItem, removeCartItem, applyCoupon } = useShop();
   const [couponMessage, setCouponMessage] = useState("");
+  const sellerCount =
+    cart.seller_count ||
+    new Set(cart.items.map((item) => item.product?.seller?.id || item.product?.seller_name || item.product?.id)).size;
 
   async function handleCouponSubmit(event) {
     event.preventDefault();
@@ -23,6 +26,22 @@ export function CartPage() {
       event.currentTarget.reset();
     } catch (error) {
       setCouponMessage(error.message);
+    }
+  }
+
+  async function handleQuantityChange(itemId, value) {
+    try {
+      await updateCartItem(itemId, value);
+    } catch {
+      // Flash messaging is handled in shared shop state.
+    }
+  }
+
+  async function handleRemove(itemId) {
+    try {
+      await removeCartItem(itemId);
+    } catch {
+      // Flash messaging is handled in shared shop state.
     }
   }
 
@@ -57,14 +76,15 @@ export function CartPage() {
                 <p>
                   {item.product.brand} • {item.variant?.title || item.product.category}
                 </p>
+                <p>Seller: {item.product.seller?.store_name || item.product.seller_name || "TradeNest seller"}</p>
                 <strong>{formatCurrency(item.unit_price)}</strong>
               </div>
               <div className="cart-item-actions">
                 <QuantityStepper
-                  onChange={(value) => updateCartItem(item.id, value)}
+                  onChange={(value) => handleQuantityChange(item.id, value)}
                   value={item.quantity}
                 />
-                <button className="text-button" onClick={() => removeCartItem(item.id)} type="button">
+                <button className="text-button" onClick={() => handleRemove(item.id)} type="button">
                   Remove
                 </button>
               </div>
@@ -75,8 +95,8 @@ export function CartPage() {
         <aside className="order-summary">
           <h2>Order summary</h2>
           <div className="summary-row">
-            <span>Seller</span>
-            <strong>{cart.items[0]?.product?.seller_name || "TradeNest seller"}</strong>
+            <span>Sellers</span>
+            <strong>{sellerCount}</strong>
           </div>
           <div className="summary-row">
             <span>Subtotal</span>

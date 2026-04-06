@@ -9,6 +9,14 @@ export function ProductCard({ product, onAddToCart, onToggleWishlist, inWishlist
     return null;
   }
 
+  async function handleAddToCart() {
+    try {
+      await onAddToCart(product, product.variants?.[0] || null, 1);
+    } catch {
+      // Flash messaging is handled in shared shop state.
+    }
+  }
+
   return (
     <article className={`product-card${compact ? " product-card--compact" : ""}`}>
       <button
@@ -47,7 +55,7 @@ export function ProductCard({ product, onAddToCart, onToggleWishlist, inWishlist
         <div className="product-actions">
           <button
             className="button button--secondary"
-            onClick={() => onAddToCart(product, product.variants?.[0] || null, 1)}
+            onClick={handleAddToCart}
             type="button"
           >
             Add to cart
