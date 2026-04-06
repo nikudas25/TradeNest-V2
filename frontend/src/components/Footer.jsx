@@ -50,10 +50,8 @@ export function Footer() {
                 type="email"
                 value={email}
               />
-              <button className="button button--primary newsletter-submit" type="submit">
-                Subscribe
-              </button>
             </div>
+            <button className="submit-button" type="submit">Subscribe</button>
           </form>
           <p className="footer-copy">Escrow updates, seller growth tips, and high-intent buyer traffic drops.</p>
         </div>
