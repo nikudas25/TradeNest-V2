@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect  } from "react"; //change1
 
 import { ProductCard } from "../components/ProductCard";
 import { SectionHeading } from "../components/SectionHeading";
@@ -8,61 +9,104 @@ import { ShieldIcon, TruckIcon } from "../components/Icons";
 
 export function HomePage() {
   const { homeData, addToCart, toggleWishlist, isWishlisted, booting } = useShop();
+  //change2 added carousel
+  const slides = [
+  {
+    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
+    title: "Discover Rare Finds",
+    subtitle: "Unique items from independent sellers",
+    buttonText: "Sign In",
+    buttonLink: "/login",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a",
+    title: "Sell What You Don’t Need",
+    subtitle: "Turn unused items into value",
+    buttonText: "Browse Listings",
+    buttonLink: "/shop",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1483985988355-763728e1935b",
+    title: "Curated Collections",
+    subtitle: "Vintage & collectible items",
+    buttonText: "Start Selling",
+    buttonLink: "/sell",
+  },
+];
+
+const [currentSlide, setCurrentSlide] = useState(0);
+
+// Auto change slide
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <div className="page-stack">
-      <section className="hero-section container">
-        <div className="hero-copy-panel">
-          <div className="hero-copy-inner">
-            <div className="hero-copy-text">
-              <p className="section-eyebrow">Trusted resale marketplace</p>
-              <h1>Less to keep, more to share discover value, rare and fair.</h1>
-              <p>
-                Give your unused items a new purpose and pass them on to someone who truly needs them,
-                while discovering unique pieces that perfectly fit your own story.
-                TradeNest helps independent sellers list one-of-one inventory while giving buyers
-                condition notes, seller trust signals, and protected escrow payouts instead of blind transfers.
-              </p>
-            </div>
-            <div className="hero-copy-image">
-              <img
-                src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=520&q=80"
-                alt="Vintage Omega Dress Watch"
-              />
-            </div>
-          </div>
-          <div className="hero-actions">
-            <Link className="button button--primary" to="/shop">
-              Browse listings
-            </Link>
-            <Link className="button button--ghost" to="/sell">
-              Start selling
-            </Link>
-          </div>
-          <div className="hero-trust-grid">
-            <article>
-              <TruckIcon size={18} />
-              <strong>Seller-led shipping</strong>
-              <span>Independent sellers fulfill each order after escrow funding.</span>
-            </article>
-            <article>
-              <ShieldIcon size={18} />
-              <strong>Escrow checkout</strong>
-              <span>Funds release only after buyer confirmation or marketplace resolution.</span>
-            </article>
-          </div>
-        </div>
+      <div className="carousel">
+          {/* ⬅️ LEFT BUTTON */}
+            <button
+              className="carousel-btn left"
+              onClick={() =>
+                setCurrentSlide((prev) =>
+                  prev === 0 ? slides.length - 1 : prev - 1
+                )
+              }
+            >
+              ❮
+            </button>
 
-      </section>
+            {slides.map((slide, index) => (
+              <div
+                key={index}
+                className={`carousel-slide ${index === currentSlide ? "active" : ""}`}
+              >
+                <img
+                  src={`${slide.image}?auto=format&fit=crop&w=1200&q=80`}
+                  alt=""
+                />
+                <div className="carousel-overlay">
+                   <h2>{slide.title}</h2>
+                   <p>{slide.subtitle}</p>
 
-      <section className="container">
-        <SectionHeading
+                   {slide.buttonText && (
+                     <Link to={slide.buttonLink} className="carousel-cta">
+                        {slide.buttonText}
+                       </Link>
+                    )}
+                </div>
+              </div>
+            ))}
+
+            {/* ➡️ RIGHT BUTTON */}
+            <button
+              className="carousel-btn right"
+              onClick={() =>
+                setCurrentSlide((prev) => (prev + 1) % slides.length)
+              }
+            >
+              ❯
+            </button>
+
+        
+        
+      </div>
+      
+      {/* change 3 removed a box */}
+      
+
+        <section className="container">
+          <SectionHeading
           actionLabel="Browse listings"
           actionTo="/shop"
           eyebrow="Market segments"
           description="Guide buyers into collectible, vintage, and open-box inventory with category-led discovery."
           title="Featured categories"
-        />
+         />
         <div className="category-grid">
           {(homeData.featured_categories || []).map((category) => (
             <Link className="category-card" key={category.slug} to={`/shop?category=${category.slug}`}>
