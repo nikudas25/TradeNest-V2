@@ -293,13 +293,13 @@ img {
   background: #8c3a2e;
 }
 
-.header-main {
+/* .header-main {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr) auto;
   gap: 18px;
   align-items: center;
   padding: 16px 0;
-}
+} */
 
 .header-main.has-menu {
   grid-template-columns: 190px minmax(0, 1fr) auto auto;
@@ -332,6 +332,15 @@ img {
   padding: 12px 18px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: var(--shadow-md);
+  margin-left: 40px;
+  margin-top: 6px;
+  flex: 1;
+  min-width: 250px;
+  max-width: 600px;
+}
+
+.icon:hover {
+  color: #ff6b6b;
 }
 
 .search-shell input {
@@ -366,6 +375,33 @@ img {
   color:#eeebdd
 } */
 
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+
+.menu-item.is-active {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.menu-item:hover {
+  background-color: var(--accent);
+  color: #fff ;
+}
+
+.header-main {
+  display: flex;
+  align-items: center;
+  gap: 20px; /* increase this value */
+}
 
 .header-actions {
   justify-content: end;
@@ -481,7 +517,7 @@ img {
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease; 
 }
 
 .menu-dropdown a:hover,
@@ -1632,4 +1668,96 @@ img {
 .carousel-overlay h2,
 .carousel-overlay p {
   text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* changes in logo */
+
+.logo-animated {
+  display: inline-block;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.logo-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(15px);
+  animation: logoFadeUp 0.4s ease forwards;
+}
+
+/* Animation */
+@keyframes logoFadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logoFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.brand-mark:hover .logo-letter {
+  animation: logoFadeUp 0.4s ease forwards;
+}
+
+
+
+/* blinking cursor */
+.cursor {
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+.logo-image {
+  height: 37px;   
+  width: auto;
+  object-fit: contain;
+}
+
+
+.logo-typing {
+  display: inline-block;
+  min-width:120px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap; 
+  line-height: 1;
+}
+
+.logo-typing-wrapper {
+  width: 130px; 
+  display: inline-block;
+}
+
+.logo-container:hover .logo-image {
+  transform: scale(1.05);
+  transition: 0.3s ease;
+}
+
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
 }

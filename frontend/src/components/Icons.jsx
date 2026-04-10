@@ -27,6 +27,34 @@ export function SearchIcon(props) {
   );
 }
 
+export function HomeIcon(props){
+  return(
+    <IconBase{...props}>
+    <path d= "M3 10.5 12 3l9 7.5"/>
+    <path d= "M5 10v10h5v-6h4v6h5V10"/>
+    </IconBase>
+  )
+}
+
+export function BrowseIcon(props){
+  return(
+    <IconBase{...props}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </IconBase>
+  )
+}
+
+export function SellIcon(props){
+  return(
+    <IconBase {...props}>
+      <path d="M20 12 12 20 4 12V4h8l8 8Z" />
+      <circle cx="9" cy="9" r="1.5" />
+    </IconBase>
+  )
+}
 
 export function HeartIcon(props) {
   return (

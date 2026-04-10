@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-
+import logo from "../logo.png";
 import { useShop } from "../context/ShopContext";
 import { formatCurrency } from "../data/formatters";
 import { CartIcon, HeartIcon, SearchIcon, SparkIcon, UserIcon, TruckIcon } from "./Icons";
-
+import { HomeIcon, BrowseIcon, SellIcon } from "./Icons";
 
 const navItems = [
   { label: "Home", to: "/" },
@@ -25,6 +25,21 @@ export function Header() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
 
+  const logoText = "TRADE NEST";
+  const [logoIndex, setLogoIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+
+  useEffect(() => {
+  if (!isHovered) return;
+
+  if (logoIndex < logoText.length) {
+    const timer = setTimeout(() => {
+      setLogoIndex((prev) => prev + 1);
+    }, 80);
+    return () => clearTimeout(timer);
+  }
+}, [logoIndex, isHovered]);
   const placeholders = [
     "Search for grails....",
     "Search for vintage bag....",
@@ -59,19 +74,35 @@ export function Header() {
 
   return (
     <header className="site-header">
-      <div className="promo-strip">
-        <span>
-          <SparkIcon size={16} />
-          TradeNest protects marketplace orders with escrow until buyers accept the item.
-        </span>
-        <span>Mix sellers in one cart and TradeNest will split checkout into protected escrow orders</span>
-      </div>
-
+      
       {notice || error ? <div className={`flash-banner${error ? " is-error" : ""}`}>{error || notice}</div> : null}
 
       <div className="header-main container has-menu">
-        <Link className="brand-mark" to="/">
-          <span>TradeNest</span>
+        <Link
+        className="brand-mark"
+        to="/"
+        onMouseEnter={() => {
+          setIsHovered(true);
+          setLogoIndex(0); // restart typing
+        }}
+        onMouseLeave={() => setIsHovered(false)}
+        >
+        <div className="logo-container">
+          <img src={logo} alt="logo" className="logo-image" />
+
+         
+            <span className="logo-typing-wrapper">
+              <span className="logo-typing">
+                {isHovered
+                  ? logoText.substring(0, logoIndex)
+                  : logoText}
+
+                {isHovered && logoIndex < logoText.length && (
+                  <span className="cursor">|</span>
+                )}
+              </span>
+            </span>
+        </div>
         </Link>
 
         <form className="search-shell" onSubmit={handleSearchSubmit}>
@@ -122,43 +153,67 @@ export function Header() {
                 )}
               </div>
             )}
-          </div>
-          <Link className="icon-link" to="/account">
-            <UserIcon size={18} />
-            <span>{user ? "Account" : "Sign in"}</span>
-          </Link>
-        </div>
+           </div>
+          
+        </div> 
 
         <div 
           className="menu-container"
           onMouseEnter={() => setMenuOpen(true)}
           onMouseLeave={() => setMenuOpen(false)}
-        >
+         >
           <button className="menu-button" type="button">
             ⋮
           </button>
+
           {menuOpen && (
             <div className="menu-dropdown">
               {navItems.map((item) => (
                 <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMenuOpen(false)}
                   className={({ isActive }) => {
                     let classes = "menu-item ";
-                    if (isActive || (item.to === "/shop" && location.pathname.startsWith("/product"))) {
+                    if (
+                      isActive ||
+                      (item.to === "/shop" &&
+                        location.pathname.startsWith("/product"))
+                    ) {
                       classes += "is-active";
                     }
                     return classes;
                   }}
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMenuOpen(false)}
                 >
+                  {item.label === "Home" && <HomeIcon size={16} />}
+                  {item.label === "Browse" && <BrowseIcon size={16} />}
+                  {item.label === "Sell" && <SellIcon size={16} />}
                   {item.label === "Wishlist" && <HeartIcon size={16} />}
                   {item.label === "Orders" && <TruckIcon size={16} />}
                   {item.label}
                 </NavLink>
               ))}
+
+              {/* Account / Sign in */}
+              <NavLink
+                to="/account"
+                className="menu-item"
+                onClick={() => setMenuOpen(false)}
+              >
+                <UserIcon size={16} />
+                {user ? "Account" : "Sign in"}
+              </NavLink>
+
+              {/* Sign out */}
               {user && (
-                <button className="text-button" onClick={() => { logout(); setMenuOpen(false); }} type="button">
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  type="button"
+                >
                   Sign out
                 </button>
               )}
@@ -167,6 +222,6 @@ export function Header() {
         </div>
       </div>
 
-      </header>
-    );
-  }
+    </header>
+   );
+}
