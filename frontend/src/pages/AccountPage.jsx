@@ -1,283 +1,350 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-
-import { useShop } from "../context/ShopContext";
-
+import {useEffect, useState} from "react";
+import {Link} from "react-router-dom";
+import {api} from "../api/client";
+import {useShop} from "../context/ShopContext";
+import {authStore} from "../api/client";
 
 const initialProfile = {
-  first_name: "",
-  last_name: "",
-  email: "",
-  phone_number: "",
-  avatar_url: "",
-};
-
-const initialAddress = {
-  label: "Home",
-  recipient_name: "",
-  phone_number: "",
-  street_line_1: "",
-  street_line_2: "",
-  city: "",
-  state: "",
-  postal_code: "",
-  country: "India",
-  landmark: "",
-  delivery_notes: "",
-  is_default_shipping: true,
-  is_default_billing: true,
-};
-
-
-export function AccountPage() {
-  const { login, register, saveAddress, updateProfile, user } = useShop();
-  const [mode, setMode] = useState("login");
-  const [message, setMessage] = useState("");
-  const [profile, setProfile] = useState(initialProfile);
-  const [authForm, setAuthForm] = useState({
-    identifier: "",
-    username: "",
     first_name: "",
     last_name: "",
     email: "",
-    password: "",
-    confirm_password: "",
     phone_number: "",
-    is_seller: true,
-    store_name: "",
-  });
-  const [address, setAddress] = useState(initialAddress);
+    avatar_url: "",
+};
 
-  useEffect(() => {
-    if (user) {
-      setProfile({
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        email: user.email || "",
-        phone_number: user.phone_number || "",
-        avatar_url: user.avatar_url || "",
-      });
-    }
-  }, [user]);
+const initialAddress = {
+    label: "Home",
+    recipient_name: "",
+    phone_number: "",
+    street_line_1: "",
+    street_line_2: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "India",
+    landmark: "",
+    delivery_notes: "",
+    is_default_shipping: true,
+    is_default_billing: true,
+};
 
-  async function handleAuthSubmit(event) {
-    event.preventDefault();
-    try {
-      if (mode === "login") {
-        await login({ identifier: authForm.identifier, password: authForm.password });
-        setMessage("");
-        return;
-      }
-      await register(authForm);
-      setMessage("");
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
+export function AccountPage() {
+    const {register, saveAddress, updateProfile, user, refreshUser} = useShop();
+    const [mode, setMode] = useState("login");
+    const [message, setMessage] = useState("");
+    const [otp, setOtp] = useState("");
+    const [otpStep, setOtpStep] = useState(false);
 
-  async function handleProfileSubmit(event) {
-    event.preventDefault();
-    try {
-      await updateProfile(profile);
-      setMessage("Profile updated.");
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
+    const [profile, setProfile] = useState(initialProfile);
 
-  async function handleAddressSubmit(event) {
-    event.preventDefault();
-    try {
-      await saveAddress(address);
-      setAddress(initialAddress);
-      setMessage("Address saved.");
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
+    const [authForm, setAuthForm] = useState({
+        identifier: "",
+        username: "",
+        first_name: "",
+        last_name: "",
+        email: "",
+        password: "",
+        confirm_password: "",
+        phone_number: "",
+        is_seller: true,
+        store_name: "",
+    });
 
-  if (!user) {
-    return (
-      <div className="page-stack container narrow-shell">
-        <div className="auth-switcher">
-          <button className={mode === "login" ? "is-active" : ""} onClick={() => setMode("login")} type="button">
-            Sign in
-          </button>
-          <button className={mode === "register" ? "is-active" : ""} onClick={() => setMode("register")} type="button">
-            Create account
-          </button>
-        </div>
+    const [address, setAddress] = useState(initialAddress);
 
-        <form className="detail-card auth-form" onSubmit={handleAuthSubmit}>
-          <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
-          {mode === "register" ? (
-            <>
-              <input
-                onChange={(event) => setAuthForm((current) => ({ ...current, username: event.target.value }))}
-                placeholder="Username"
-                value={authForm.username}
-              />
-              <div className="form-grid">
-                <input
-                  onChange={(event) => setAuthForm((current) => ({ ...current, first_name: event.target.value }))}
-                  placeholder="First name"
-                  value={authForm.first_name}
-                />
-                <input
-                  onChange={(event) => setAuthForm((current) => ({ ...current, last_name: event.target.value }))}
-                  placeholder="Last name"
-                  value={authForm.last_name}
-                />
-              </div>
-              <input
-                onChange={(event) => setAuthForm((current) => ({ ...current, store_name: event.target.value }))}
-                placeholder="Seller store name"
-                value={authForm.store_name}
-              />
-            </>
-          ) : (
-            <input
-              onChange={(event) => setAuthForm((current) => ({ ...current, identifier: event.target.value }))}
-              placeholder="Username or phone number"
-              required
-              type="text"
-              value={authForm.identifier}
-            />
-          )}
+    useEffect(() => {
+        if (user) {
+            setProfile({
+                first_name: user.first_name || "",
+                last_name: user.last_name || "",
+                email: user.email || "",
+                phone_number: user.phone_number || "",
+                avatar_url: user.avatar_url || "",
+            });
+        }
+    }, [user]);
 
-          {mode === "register" ? (
-            <>
-              <input
-                onChange={(event) => setAuthForm((current) => ({ ...current, email: event.target.value }))}
-                placeholder="Email address"
-                required
-                type="email"
-                value={authForm.email}
-              />
-              <input
-                onChange={(event) => setAuthForm((current) => ({ ...current, phone_number: event.target.value }))}
-                placeholder="Phone number"
-                type="text"
-                value={authForm.phone_number}
-              />
-            </>
-          ) : null}
-          <input
-            onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
-            placeholder="Password"
-            required
-            type="password"
-            value={authForm.password}
-          />
-          {mode === "register" ? (
-            <input
-              onChange={(event) => setAuthForm((current) => ({ ...current, confirm_password: event.target.value }))}
-              placeholder="Confirm password"
-              required
-              type="password"
-              value={authForm.confirm_password}
-            />
-          ) : null}
-          <button className="button button--primary button--full" type="submit">
-            {mode === "login" ? "Sign in" : "Create account"}
-          </button>
-          {message ? <p className="helper-copy">{message}</p> : null}
-        </form>
-      </div>
-    );
-  }
+    async function handleAuthSubmit(event) {
+        event.preventDefault();
 
-  return (
-    <div className="page-stack container">
-      <div className="section-heading">
-        <div>
-          <p className="section-eyebrow">Account</p>
-          <h1>Your buyer and seller hub</h1>
-        </div>
-      </div>
-      {message ? <p className="helper-copy">{message}</p> : null}
+        try {
+            if (mode === "login") {
+                if (!authForm.identifier) {
+                    setMessage("Please enter your email");
+                    return;
+                }
 
-      <div className="account-layout">
-        <form className="detail-card" onSubmit={handleProfileSubmit}>
-          <h2>Profile</h2>
-          <div className="form-grid">
-            {Object.entries(profile).map(([field, value]) => (
-              <input
-                key={field}
-                onChange={(event) => setProfile((current) => ({ ...current, [field]: event.target.value }))}
-                placeholder={field.replaceAll("_", " ")}
-                type={field === "email" ? "email" : "text"}
-                value={value}
-              />
-            ))}
-          </div>
-          <button className="button button--secondary" type="submit">
-            Save profile
-          </button>
-        </form>
+                if (!otpStep) {
+                    await api.requestOtp(authForm.identifier);
+                    setOtpStep(true);
+                    setMessage(`OTP sent to ${authForm.identifier}`);
+                } else {
+                    const data = await api.verifyOtp(authForm.identifier, otp);
 
-        <div className="detail-card">
-          <h2>Seller status</h2>
-          <div className="address-list">
-            <article className="address-card">
-              <strong>
-                {user.seller_profile?.store_name || (user.is_seller ? "TradeNest seller" : "Buyer only account")}
-              </strong>
-              <p>
-                {user.seller_profile?.is_verified ? "Verified seller" : user.is_seller ? "Seller profile active" : "Create a seller profile to list items"}
-              </p>
-              <p>{user.seller_profile?.bio || "Use the seller workspace to add listings, edit seller info, and manage escrow-backed sales."}</p>
-              <Link className="button button--secondary" to="/sell">
-                Open seller workspace
-              </Link>
-            </article>
-          </div>
-        </div>
+                    console.log("VERIFY RESPONSE:", data);
 
-        <div className="detail-card">
-          <h2>Saved addresses</h2>
-          <div className="address-list">
-            {(user.addresses || []).map((item) => (
-              <article className="address-card" key={item.id}>
-                <strong>{item.label}</strong>
-                <p>{item.recipient_name}</p>
-                <p>{item.formatted}</p>
-              </article>
-            ))}
-            {!user.addresses?.length ? <p>No saved addresses yet.</p> : null}
-          </div>
-        </div>
+                    const token = data.token || data.key;
 
-        <form className="detail-card" onSubmit={handleAddressSubmit}>
-          <h2>Add an address</h2>
-          <div className="form-grid">
-            {Object.entries(address).map(([field, value]) =>
-              typeof value === "boolean" ? (
-                <label className="checkbox-row" key={field}>
-                  <input
-                    checked={value}
-                    onChange={(event) =>
-                      setAddress((current) => ({ ...current, [field]: event.target.checked }))
+                    console.log("TOKEN: ", token);
+
+                    if(!token)
+                    {
+                        setMessage("Login failed: No token received");
+                        return;
                     }
-                    type="checkbox"
-                  />
-                  {field.replaceAll("_", " ")}
-                </label>
-              ) : (
-                <input
-                  key={field}
-                  onChange={(event) => setAddress((current) => ({ ...current, [field]: event.target.value }))}
-                  placeholder={field.replaceAll("_", " ")}
-                  value={value}
-                />
-              ),
-            )}
-          </div>
-          <button className="button button--secondary" type="submit">
-            Save address
-          </button>
-        </form>
-      </div>
-    </div>
-  );
+
+                    localStorage.setItem("tradenest-auth-token", token);
+                    
+                    await refreshUser();
+
+                    window.location.href = "/account";
+                }
+                return;
+            }
+
+            await register(authForm);
+            setMessage("");
+        } catch (error) {
+            setMessage(error.message);
+        }
+    }
+
+    async function handleProfileSubmit(event) {
+        event.preventDefault();
+        try {
+            await updateProfile(profile);
+            setMessage("Profile updated.");
+        } catch (error) {
+            setMessage(error.message);
+        }
+    }
+
+    async function handleAddressSubmit(event) {
+        event.preventDefault();
+        try {
+            await saveAddress(address);
+            setAddress(initialAddress);
+            setMessage("Address saved.");
+        } catch (error) {
+            setMessage(error.message);
+        }
+    }
+
+    if (!user) {
+        return (
+            <div className="page-stack container narrow-shell">
+                <div className="auth-switcher">
+                    <button
+                        className={mode === "login" ? "is-active" : ""}
+                        onClick={() => {
+                            setMode("login");
+                            setOtpStep(false);
+                            setOtp("");
+                            setMessage("");
+                        }}
+                        type="button"
+                    >
+                        Sign in
+                    </button>
+
+                    <button
+                        className={mode === "register" ? "is-active" : ""}
+                        onClick={() => {
+                            setMode("register");
+                            setOtpStep(false);
+                            setOtp("");
+                            setMessage("");
+                        }}
+                        type="button"
+                    >
+                        Create account
+                    </button>
+                </div>
+
+                <form className="detail-card auth-form" onSubmit={handleAuthSubmit}>
+                    <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+
+                    {mode === "register" ? (
+                        <>
+                            <input
+                                placeholder="Username"
+                                value={authForm.username}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({...c, username: e.target.value}))
+                                }
+                            />
+
+                            <div className="form-grid">
+                                <input
+                                    placeholder="First name"
+                                    value={authForm.first_name}
+                                    onChange={(e) =>
+                                        setAuthForm((c) => ({...c, first_name: e.target.value}))
+                                    }
+                                />
+                                <input
+                                    placeholder="Last name"
+                                    value={authForm.last_name}
+                                    onChange={(e) =>
+                                        setAuthForm((c) => ({...c, last_name: e.target.value}))
+                                    }
+                                />
+                            </div>
+
+                            <input
+                                placeholder="Seller store name"
+                                value={authForm.store_name}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({...c, store_name: e.target.value}))
+                                }
+                            />
+                        </>
+                    ) : (
+                        <input
+                            placeholder="Enter your email"
+                            type="email"
+                            required
+                            value={authForm.identifier}
+                            onChange={(e) =>
+                                setAuthForm((c) => ({...c, identifier: e.target.value}))
+                            }
+                        />
+                    )}
+
+                    {mode === "register" && (
+                        <>
+                            <input
+                                placeholder="Email address"
+                                type="email"
+                                required
+                                value={authForm.email}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({...c, email: e.target.value}))
+                                }
+                            />
+
+                            <input
+                                placeholder="Phone number"
+                                value={authForm.phone_number}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({
+                                        ...c,
+                                        phone_number: e.target.value,
+                                    }))
+                                }
+                            />
+
+                            <input
+                                placeholder="Password"
+                                type="password"
+                                required
+                                value={authForm.password}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({...c, password: e.target.value}))
+                                }
+                            />
+
+                            <input
+                                placeholder="Confirm password"
+                                type="password"
+                                required
+                                value={authForm.confirm_password}
+                                onChange={(e) =>
+                                    setAuthForm((c) => ({
+                                        ...c,
+                                        confirm_password: e.target.value,
+                                    }))
+                                }
+                            />
+                        </>
+                    )}
+
+                    {mode === "login" && otpStep && (
+                        <>
+                            <input
+                                placeholder="Enter OTP"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => api.requestOtp(authForm.identifier)}
+                            >
+                                Resend OTP
+                            </button>
+                        </>
+                    )}
+
+                    <button className="button button--primary button--full" type="submit">
+                        {mode === "login"
+                            ? otpStep
+                                ? "Verify OTP"
+                                : "Send OTP"
+                            : "Create account"}
+                    </button>
+
+                    {message && <p className="helper-copy">{message}</p>}
+                </form>
+            </div>
+        );
+    }
+
+    return (
+        <div className="page-stack container">
+            <div className="section-heading">
+                <div>
+                    <p className="section-eyebrow">Account</p>
+                    <h1>Your buyer and seller hub</h1>
+                </div>
+            </div>
+
+            {message && <p className="helper-copy">{message}</p>}
+
+            <div className="account-layout">
+                <form className="detail-card" onSubmit={handleProfileSubmit}>
+                    <h2>Profile</h2>
+                    <div className="form-grid">
+                        {Object.entries(profile).map(([field, value]) => (
+                            <input
+                                key={field}
+                                value={value}
+                                placeholder={field.replaceAll("_", " ")}
+                                onChange={(e) =>
+                                    setProfile((c) => ({...c, [field]: e.target.value}))
+                                }
+                            />
+                        ))}
+                    </div>
+                    <button className="button button--secondary">
+                        Save profile
+                    </button>
+                </form>
+
+                <div className="detail-card">
+                    <h2>Seller status</h2>
+                    <div className="address-list">
+                        <article className="address-card">
+                            <strong>
+                                {user.seller_profile?.store_name ||
+                                    (user.is_seller
+                                        ? "TradeNest seller"
+                                        : "Buyer only account")}
+                            </strong>
+                            <p>
+                                {user.seller_profile?.is_verified
+                                    ? "Verified seller"
+                                    : user.is_seller
+                                        ? "Seller profile active"
+                                        : "Create a seller profile"}
+                            </p>
+                            <Link to="/sell" className="button button--secondary">
+                                Open seller workspace
+                            </Link>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }

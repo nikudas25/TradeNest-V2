@@ -95,3 +95,13 @@ class SellerProfile(TimeStampedModel):
         if not self.user.is_seller:
             self.user.is_seller = True
             self.user.save(update_fields=["is_seller"])
+
+class EmailOTP(models.Model):
+    email = models.EmailField(unique=True)
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now=True)
+
+    def is_expired(self):
+        from django.utils.timezone import now
+        from datetime import timedelta
+        return now() > self.created_at + timedelta(minutes=5)
