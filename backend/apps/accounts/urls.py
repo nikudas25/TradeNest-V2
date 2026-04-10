@@ -9,6 +9,8 @@ from .views import (
     MeView,
     RegisterView,
     SellerProfileView,
+    RequestOTPView,
+    VerifyOTPView,
 )
 
 router = DefaultRouter()
@@ -21,6 +23,8 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("seller-profile/", SellerProfileView.as_view(), name="seller-profile"),
+    path("request-otp/", RequestOTPView.as_view()),
+    path("verify-otp/", VerifyOTPView.as_view()),
 ]
 
 urlpatterns += router.urls

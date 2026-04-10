@@ -3,6 +3,60 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .models import EmailOTP
+from utils.otp import generate_otp, send_otp_email
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class RequestOTPView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response({"email": "User not found"}, status=404)
+        otp = generate_otp()
+
+        EmailOTP.objects.update_or_create(
+            email=email,
+            defaults={"otp": otp},
+        )
+
+        send_otp_email(email, otp)
+
+        return Response({"message": "OTP sent successfully."})
+
+class VerifyOTPView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        entered_otp = request.data.get("otp")
+
+        try:
+            otp_obj = EmailOTP.objects.get(email=email)
+        except EmailOTP.DoesNotExist:
+            return Response({"email": "No OTP found"}, status=400)
+
+        if otp_obj.is_expired():
+            return Response({"email": "OTP expired"}, status=400)
+
+        if otp_obj.otp != entered_otp:
+            return Response({"email": "Invalid OTP"}, status=400)
+
+        user = User.objects.get(email=email)
+
+        token, _ = Token.objects.get_or_create(user=user)
+
+        otp_obj.delete()
+
+        return Response({
+            "token": token.key,
+            "user": UserSerializer(user).data,
+        })
 
 from .models import Address, SellerProfile
 from .serializers import (
