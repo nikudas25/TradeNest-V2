@@ -7,6 +7,10 @@ from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view
+from django.views.decorators.csrf import csrf_exempt
+from apps.commerce.models import Payment, Order, EscrowTransaction
+
 
 from apps.catalog.models import Product
 
@@ -239,8 +243,8 @@ class CheckoutView(APIView):
 
         totals = calculate_cart_totals(cart)
         payment_method = "escrow"
-        payment_status = Order.PaymentStatus.ESCROW_HELD
-        order_status = Order.Status.AWAITING_SHIPMENT
+        payment_status = Order.PaymentStatus.PENDING
+        order_status = Order.Status.PENDING
         grouped_items = group_cart_items_by_seller(cart_items)
         group_summaries = []
         for group in grouped_items:
@@ -255,6 +259,8 @@ class CheckoutView(APIView):
 
         allocated_discounts = allocate_discount_by_subtotal(group_summaries, totals["discount_total"])
         created_orders = []
+
+        master_payment = None
 
         for index, group in enumerate(group_summaries):
             order_totals = calculate_totals_for_items(group["items"], discount_total=allocated_discounts[index])
@@ -313,32 +319,48 @@ class CheckoutView(APIView):
                         cart_item.product.resale_status = Product.ResaleStatus.RESERVED
                 cart_item.product.save(update_fields=["stock_quantity", "resale_status", "updated_at"])
 
-            Payment.objects.create(
-                order=order,
-                provider="tradenest-escrow",
-                status=payment_status,
-                amount=order.grand_total,
-                payload={
-                    "method": payment_method,
-                    "captured": False,
-                    "held_in_escrow": True,
-                    "session_key": session_key,
-                },
-            )
-            EscrowTransaction.objects.create(
-                order=order,
-                buyer=user,
-                seller=group["seller"],
-                status=EscrowTransaction.Status.FUNDED,
-                held_amount=order.grand_total,
-            )
+            order.payment_status = Order.PaymentStatus.PENDING
+            order.status = Order.Status.PENDING
+
+            created_orders.append(order)
 
             OrderStatusHistory.objects.create(
                 order=order,
                 status=order.status,
                 note="Escrow funded and seller notified to ship.",
             )
-            created_orders.append(order)
+
+        print("CALLING CASHFREE NOW 🚀")
+
+        total_amount = sum(order.grand_total for order in created_orders)
+        order_ids = [order.order_number for order in created_orders]
+        
+        master_payment = Payment.objects.create(
+            order=created_orders[0],  # link to first order
+            provider="cashfree",
+            status="pending",
+            amount=total_amount,
+            payload={
+                "method": "cashfree",
+                "captured": False,
+                "held_in_escrow": False,
+                "session_key": session_key,
+                "order_ids": order_ids
+            },
+            
+        )
+        
+        print("MASTER PAYMENT CREATED:", master_payment.id)
+
+        from .services import create_cashfree_order
+        cf_response = create_cashfree_order(
+            total_amount,
+            request.user,
+            order_ids,
+            master_payment
+        )  
+        print("CASHFREE CALLED ✅")      
+        
 
         if cart.coupon:
             cart.coupon.usage_count += 1
@@ -351,9 +373,18 @@ class CheckoutView(APIView):
         response_data = {
             "orders": OrderSerializer(created_orders, many=True).data,
             "order_count": len(created_orders),
-            "grand_total": totals["grand_total"],
+            "grand_total": total_amount,
             "session_key": session_key,
+            "payment_session_id": cf_response.get("payment_session_id"),
+            "order_ids": order_ids
         }
+
+        if master_payment:
+            print("MASTER PAYMENT ID:", master_payment.id)
+            print("MASTER PAYMENT ORDER:", master_payment.order.order_number)
+        else:
+            print("MASTER PAYMENT IS NONE ❌")
+            
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -603,3 +634,66 @@ class DashboardOverviewView(APIView):
                 "recent_orders": OrderSerializer(recent_orders, many=True).data,
             }
         )
+
+from django.db import transaction
+
+@csrf_exempt
+@api_view(["POST"])
+def cashfree_webhook(request):
+    data = request.data
+    print("Webhook received:", data)
+
+    try:
+        cf_order_id = data["data"]["order"]["order_id"]
+        payment_status = data["data"]["payment"]["payment_status"]
+    except KeyError:
+        return Response({"error": "Invalid payload"}, status=400)
+
+    # ✅ Ignore non-success
+    if payment_status != "SUCCESS":
+        return Response({"message": "Ignored"}, status=200)
+
+    with transaction.atomic():
+
+        # 🔒 Lock payment row
+        try:
+            payment = Payment.objects.select_for_update().get(
+                cashfree_order_id=cf_order_id
+            )
+        except Payment.DoesNotExist:
+            return Response({"error": "Payment not found"}, status=404)
+
+        # ✅ Idempotency guard
+        if payment.status == "completed":
+            return Response({"message": "Already processed"}, status=200)
+
+        order_ids = payment.payload.get("order_ids", [])
+
+        orders = Order.objects.filter(order_number__in=order_ids)
+
+        # ✅ Update payment
+        payment.status = "completed"
+        payment.payload["captured"] = True
+        payment.payload["held_in_escrow"] = True
+        payment.save(update_fields=["status", "payload", "updated_at"])
+
+        for order in orders:
+
+            # ✅ Idempotent order update
+            if order.payment_status != Order.PaymentStatus.ESCROW_HELD:
+                order.payment_status = Order.PaymentStatus.ESCROW_HELD
+                order.status = Order.Status.AWAITING_SHIPMENT
+                order.save(update_fields=["payment_status", "status", "updated_at"])
+
+            # ✅ Safe escrow creation
+            EscrowTransaction.objects.get_or_create(
+                order=order,
+                defaults={
+                    "buyer": order.user,
+                    "seller": order.seller,
+                    "held_amount": order.grand_total,
+                    "status": EscrowTransaction.Status.FUNDED,
+                }
+            )
+
+    return Response({"message": "Webhook processed"}, status=200)

@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 from corsheaders.defaults import default_headers
+from dotenv import load_dotenv
 
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,7 +42,6 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.commerce",
-    # "django_extensions",
 ]
 
 MIDDLEWARE = [
@@ -147,3 +148,6 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", "store@example.com")
 FRONTEND_BASE_URL = get_env("FRONTEND_BASE_URL", "http://localhost:5173")
 
+CASHFREE_CLIENT_ID = os.getenv("CASHFREE_CLIENT_ID")
+CASHFREE_CLIENT_SECRET = os.getenv("CASHFREE_CLIENT_SECRET")
+CASHFREE_BASE_URL = os.getenv("CASHFREE_BASE_URL", "https://sandbox.cashfree.com")

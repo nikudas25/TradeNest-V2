@@ -1,5 +1,7 @@
 from django.urls import path
 
+from .views import cashfree_webhook
+
 from .views import (
     AddToCartView,
     BuyerCancelOrderView,
@@ -18,6 +20,7 @@ from .views import (
     SellerShipOrderView,
     WishlistDetailView,
     WishlistView,
+    cashfree_webhook,
 )
 
 urlpatterns = [
@@ -38,4 +41,5 @@ urlpatterns = [
     path("seller/orders/<str:order_number>/ship/", SellerShipOrderView.as_view(), name="seller-ship-order"),
     path("newsletter/", NewsletterSubscribeView.as_view(), name="newsletter"),
     path("dashboard/", DashboardOverviewView.as_view(), name="dashboard"),
+    path("webhook/cashfree/", cashfree_webhook),
 ]

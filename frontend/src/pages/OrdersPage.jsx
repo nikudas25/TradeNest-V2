@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-
+import { useNavigate } from "react-router-dom";
 import { useShop } from "../context/ShopContext";
 import { formatCurrency, formatDate } from "../data/formatters";
 

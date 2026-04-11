@@ -89,8 +89,6 @@ export function Header() {
         >
         <div className="logo-container">
           <img src={logo} alt="logo" className="logo-image" />
-
-         
             <span className="logo-typing-wrapper">
               <span className="logo-typing">
                 {isHovered
@@ -153,15 +151,12 @@ export function Header() {
                 )}
               </div>
             )}
-           </div>
-          
-        </div> 
 
         <div 
           className="menu-container"
           onMouseEnter={() => setMenuOpen(true)}
           onMouseLeave={() => setMenuOpen(false)}
-         >
+        >
           <button className="menu-button" type="button">
             ⋮
           </button>
@@ -223,5 +218,5 @@ export function Header() {
       </div>
 
     </header>
-   );
+  );
 }
