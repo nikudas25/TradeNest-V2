@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useShop } from "../context/ShopContext";
 import { formatCurrency } from "../data/formatters";
-
+import { load } from "@cashfreepayments/cashfree-js";
 
 const initialAddress = {
   recipient_name: "",
@@ -21,6 +21,7 @@ const initialAddress = {
 
 export function CheckoutPage() {
   const { cart, checkout, user } = useShop();
+  const navigate = useNavigate();
   const [shippingAddress, setShippingAddress] = useState(initialAddress);
   const [billingAddress, setBillingAddress] = useState(initialAddress);
   const [sameAsShipping, setSameAsShipping] = useState(true);
@@ -44,7 +45,7 @@ export function CheckoutPage() {
     event.preventDefault();
     setSubmitting(true);
     try {
-      const placedOrder = await checkout({
+      const response = await checkout({
         email: user.email,
         phone_number: shippingAddress.phone_number,
         shipping_address: shippingAddress,
@@ -53,7 +54,27 @@ export function CheckoutPage() {
         payment_method: "escrow",
         notes: event.currentTarget.notes.value,
       });
-      setConfirmation(placedOrder);
+      
+      console.log("Checkout response:", response);
+
+      const paymentSessionId = response.payment_session_id;
+
+      const cashfree = await load({
+        mode: "sandbox",
+      });
+
+      cashfree.checkout({
+        paymentSessionId: paymentSessionId,
+        redirectTarget: "_modal",
+        onSuccess: function () {
+          alert("Payment Successful 🎉");
+          alert("TEST CHANGE");
+          navigate("/orders");
+        },
+        onFailure: function () 
+        {alert("Payment Failed ❌");},
+      });
+
     } catch {
       // Flash messaging is handled in shared shop state.
     } finally {

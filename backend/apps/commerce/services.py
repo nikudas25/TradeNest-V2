@@ -1,9 +1,68 @@
+import http
 import uuid
 from collections import OrderedDict
 from decimal import Decimal, ROUND_HALF_UP
 
 from apps.commerce.models import Cart, CartItem
 
+import requests
+from django.conf import settings
+
+
+def create_cashfree_order(total_amount, user, order_ids, payment):
+    url = f"{settings.CASHFREE_BASE_URL}/pg/orders"
+
+    headers = {
+        "x-client-id": settings.CASHFREE_CLIENT_ID,
+        "x-client-secret": settings.CASHFREE_CLIENT_SECRET,
+        "Content-Type": "application/json",
+        "x-api-version": "2022-09-01"
+    }
+
+    # 🔹 unique Cashfree order id
+    cf_order_id = f"cf_{uuid.uuid4().hex[:10]}"
+
+    data = {
+        "order_id": cf_order_id,
+        "order_amount": float(total_amount),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id": str(user.id),
+            "customer_email": user.email,
+            "customer_phone": "9999999999"
+        },
+        "order_meta": {
+            "return_url": "http://localhost:5173/payment-success",
+            "notify_url": "https://sherell-unexpropriable-subaggregately.ngrok-free.dev/api/commerce/webhook/cashfree/"
+        }
+    }
+
+    response = requests.post(url, json=data, headers=headers)
+    res = response.json()
+
+    print("Cashfree response:", res)  # DEBUG
+
+    # 🔥 store everything in payload
+
+    cf_order_id = res.get("order_id")
+    # ✅ store in dedicated DB field (IMPORTANT)
+    payment.cashfree_order_id = cf_order_id
+    # 🔁 still keep in payload (for debugging + flexibility)
+    payload = payment.payload.copy()
+    payload.update({
+        "cashfree_order_id": cf_order_id,
+        "payment_session_id": res.get("payment_session_id"),
+        "order_ids": order_ids
+    })
+    
+    payment.payload = payload 
+    
+    # ✅ use update_fields for efficiency
+    payment.save(update_fields=["cashfree_order_id", "payload", "updated_at"])
+
+    print("FINAL PAYMENT PAYLOAD:", payment.payload)
+
+    return res
 
 STANDARD_SHIPPING_FEE = Decimal("149.00")
 FREE_SHIPPING_THRESHOLD = Decimal("2999.00")

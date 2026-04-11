@@ -275,6 +275,7 @@ class Payment(TimeStampedModel):
     status = models.CharField(max_length=20, default="pending")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_id = models.CharField(max_length=80, unique=True, blank=True)
+    cashfree_order_id = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     payload = models.JSONField(default=dict, blank=True)
 
     class Meta:
