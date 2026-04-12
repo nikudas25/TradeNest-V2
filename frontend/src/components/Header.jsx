@@ -151,6 +151,7 @@ export function Header() {
                 )}
               </div>
             )}
+            </div>
 
         <div 
           className="menu-container"
@@ -216,7 +217,7 @@ export function Header() {
           )}
         </div>
       </div>
-
+      </div>
     </header>
   );
 }

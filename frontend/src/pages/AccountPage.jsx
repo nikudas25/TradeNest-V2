@@ -47,7 +47,7 @@ export function AccountPage() {
         confirm_password: "",
         phone_number: "",
         is_seller: true,
-        store_name: "",
+        //store_name: "",
     });
 
     const [address, setAddress] = useState(initialAddress);
@@ -190,14 +190,6 @@ export function AccountPage() {
                                     }
                                 />
                             </div>
-
-                            <input
-                                placeholder="Seller store name"
-                                value={authForm.store_name}
-                                onChange={(e) =>
-                                    setAuthForm((c) => ({...c, store_name: e.target.value}))
-                                }
-                            />
                         </>
                     ) : (
                         <input
