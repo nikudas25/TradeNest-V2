@@ -3,6 +3,8 @@ from rest_framework import generics, permissions, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import ProductImage
 
 from .models import Brand, Category, Product, ProductReview
 from .serializers import (
@@ -174,13 +176,23 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
 class MyListingViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = SellerListingSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
-        return Product.objects.filter(seller=self.request.user).select_related("category", "brand")
+        return Product.objects.filter(seller=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(
+        product = serializer.save(
             seller=self.request.user,
             resale_status=serializer.validated_data.get("resale_status", Product.ResaleStatus.ACTIVE),
             escrow_required=True,
         )
+
+        images = self.request.FILES.getlist("images")
+
+        for i, image in enumerate(images):
+            ProductImage.objects.create(
+                product=product,
+                image=image,
+                is_primary=(i == 0)
+            )
