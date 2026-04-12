@@ -12,6 +12,7 @@ import { ProductPage } from "./pages/ProductPage";
 import { SellPage } from "./pages/SellPage";
 import { ShopPage } from "./pages/ShopPage";
 import { WishlistPage } from "./pages/WishlistPage";
+import { CreateListingPage } from "./pages/CreateListingPage.jsx";
 
 
 export default function App() {
@@ -30,9 +31,11 @@ export default function App() {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/sell" element={<SellPage />} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="/sell" element={<CreateListingPage />} />
         </Routes>
       </main>
       <Footer />
     </div>
   );
 }
+
