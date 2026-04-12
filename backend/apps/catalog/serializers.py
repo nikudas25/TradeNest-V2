@@ -15,7 +15,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "description",
-            "image_url",
+            "image",
             "featured",
             "children",
         ]
@@ -36,7 +36,7 @@ class BrandSerializer(serializers.ModelSerializer):
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
-        fields = ["id", "image_url", "alt_text", "is_primary", "sort_order"]
+        fields = ["id", "image", "alt_text", "is_primary", "sort_order"]
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):

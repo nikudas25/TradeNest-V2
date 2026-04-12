@@ -23,6 +23,7 @@ services:
       - ./backend/.env.example
     volumes:
       - ./backend:/app
+      - ./backend/media:/app/media
     command: >
       sh -c "python manage.py makemigrations accounts catalog commerce &&
       python manage.py migrate &&

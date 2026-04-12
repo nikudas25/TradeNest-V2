@@ -55,17 +55,17 @@ function buildUrl(path, params) {
     return `${API_BASE_URL}${path}${queryString ? `?${queryString}` : ""}`;
 }
 
-
 async function request(path, options = {}) {
     const token = authStore.getToken();
     const sessionKey = authStore.getSessionKey();
 
+    const isFormData = options.body instanceof FormData;
+
     const headers = {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : {"Content-Type": "application/json"}),
         ...(options.headers || {}),
     };
 
-    // ✅ attach token BEFORE request
     if (token) {
         headers["Authorization"] = `Token ${token}`;
     }
@@ -77,7 +77,9 @@ async function request(path, options = {}) {
     const response = await fetch(buildUrl(path, options.params), {
         method: options.method || "GET",
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined,
+        body: options.body
+            ? (isFormData ? options.body : JSON.stringify(options.body))
+            : undefined,
     });
 
     const text = await response.text();

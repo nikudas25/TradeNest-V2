@@ -12,7 +12,7 @@ class Category(TimeStampedModel):
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     description = models.TextField(blank=True)
-    image_url = models.URLField(blank=True)
+    image = models.ImageField(upload_to="categories/", null=True, blank=True)
     featured = models.BooleanField(default=False)
     parent = models.ForeignKey(
         "self",
@@ -159,7 +159,7 @@ class Product(TimeStampedModel):
     @property
     def primary_image(self):
         image = self.images.filter(is_primary=True).first() or self.images.first()
-        return image.image_url if image else self.thumbnail_url
+        return image.image.url if image else self.thumbnail_url
 
     @property
     def seller_name(self):
@@ -189,7 +189,7 @@ class Product(TimeStampedModel):
 
 class ProductImage(TimeStampedModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image_url = models.URLField()
+    image = models.ImageField(upload_to="products/")
     alt_text = models.CharField(max_length=180, blank=True)
     is_primary = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)

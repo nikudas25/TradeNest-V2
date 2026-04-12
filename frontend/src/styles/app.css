@@ -1761,3 +1761,74 @@ img {
   align-items: center;
   text-decoration: none;
 }
+
+.product-main-image {
+  width: 100%;
+  height: auto;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.product-main-image {
+  width: 100%;
+  height: auto;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.thumb:hover {
+  border: 2px solid #000;
+  transform: scale(1.08);
+  box-shadow: 0 0 8px rgba(0,0,0,0.2);
+}
+
+.thumb {
+  border: 2px solid transparent;
+  padding: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* 👇 THIS is the hover highlight */
+.thumb:hover {
+  border: 2px solid #6c63ff;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.cart-item img,
+.cart-dropdown-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.cart-item img,
+.cart-dropdown-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
