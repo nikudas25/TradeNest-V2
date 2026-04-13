@@ -688,6 +688,34 @@ def cashfree_webhook(request):
 
     return Response({"message": "Webhook processed"}, status=200)
 
+class SubmitSellerRatingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, order_number):
+        order = get_object_or_404(Order, order_number=order_number, user=request.user)
+
+        # ✅ Only completed orders
+        if order.status != Order.Status.COMPLETED:
+            return Response({"detail": "You can only rate after delivery."}, status=400)
+
+        # ✅ Prevent duplicate
+        if hasattr(order, "sellerrating"):
+            return Response({"detail": "You have already rated this seller."}, status=400)
+
+        seller_profile = order.seller.seller_profile
+
+        rating = request.data.get("rating")
+        review = request.data.get("review", "")
+
+        SellerRating.objects.create(
+            buyer=request.user,
+            seller=seller_profile,
+            order=order,
+            rating=rating,
+            review=review
+        )
+
+        return Response({"message": "Rating submitted successfully"})
 class AdminMarkDeliveredView(APIView):
     permission_classes = [permissions.IsAdminUser]
 

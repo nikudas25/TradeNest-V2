@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.db.models import Q
 from rest_framework import serializers
 
-from .models import Address, SellerProfile
+from .models import Address, SellerProfile, SellerRating
 
 User = get_user_model()
 
@@ -173,3 +173,9 @@ class ChangePasswordSerializer(serializers.Serializer):
 class SellerProfileUpsertSerializer(SellerProfileSerializer):
     class Meta(SellerProfileSerializer.Meta):
         read_only_fields = ["slug", "is_verified", "seller_rating", "total_sales"]
+
+
+class SellerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SellerRating
+        fields = ["id", "rating", "review", "created_at"]

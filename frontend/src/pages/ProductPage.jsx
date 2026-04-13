@@ -1,6 +1,5 @@
 import {useEffect, useState} from "react";
-import {Link, useParams} from "react-router-dom";
-
+import {Link, useParams} from "react-router-dom"
 import {api} from "../api/client";
 import {ProductCard} from "../components/ProductCard";
 import {QuantityStepper} from "../components/QuantityStepper";
@@ -9,6 +8,14 @@ import {formatCurrency, formatDate} from "../data/formatters";
 
 
 export function ProductPage() {
+
+    function getImageUrl(path) {
+        if (!path) return null;
+        return path.startsWith("http")
+            ? path
+            : `http://localhost:8000${path}`;
+    }
+
     const {slug} = useParams();
     const {
         addToCart,
@@ -35,10 +42,10 @@ export function ProductPage() {
 
                 const imageUrl =
                     data.images?.length > 0
-                        ? `http://localhost:8000${data.images[0].image}`
-                        : data.primary_image
-                            ? `http://localhost:8000${data.primary_image}`
-                            : null;
+                        ? data.images[0].image
+                        : data.primary_image || null;
+
+                setSelectedImage(imageUrl);
 
                 setSelectedImage(imageUrl || null);
                 setSelectedVariant(data.variants?.[0] || null);
@@ -52,10 +59,8 @@ export function ProductPage() {
 
                 const fallbackImage =
                     fallbackProduct?.images?.length > 0
-                        ? `http://localhost:8000${fallbackProduct.images[0].image}`
-                        : fallbackProduct?.primary_image
-                            ? `http://localhost:8000${fallbackProduct.primary_image}`
-                            : null;
+                        ? fallbackProduct.images[0].image
+                        : fallbackProduct?.primary_image || null;
 
                 setSelectedImage(fallbackImage);
                 setSelectedVariant(fallbackProduct?.variants?.[0] || null);
@@ -106,17 +111,9 @@ export function ProductPage() {
                 <div className="product-gallery">
                     <div className="product-gallery-main">
                         <img
-                            key={selectedImage}   // 👈 ADD THIS LINE
-                            className="product-main-image"  // 👈 ADD THIS
+                            className="product-main-image"
                             alt={product.name}
-                            src={
-                                selectedImage ||
-                                (product.images?.length > 0 && product.images[0].image
-                                    ? `http://localhost:8000${product.images[0].image}`
-                                    : product.primary_image
-                                        ? `http://localhost:8000${product.primary_image}`
-                                        : "")
-                            }
+                            src={getImageUrl(selectedImage)}
                         />
                     </div>
                     <div className="product-gallery-thumbs">
@@ -124,26 +121,12 @@ export function ProductPage() {
                             <button
                                 className="thumb"
                                 key={image.id}
-                                onClick={() => {
-                                    if (image.image) {
-                                        setSelectedImage(
-                                            image.image.startsWith("http")
-                                                ? image.image
-                                                : `http://localhost:8000${image.image}`
-                                        );
-                                    }
-                                }}
+                                onClick={() => setSelectedImage(getImageUrl(image.image))}
                                 type="button"
                             >
                                 <img
                                     alt={product.name}
-                                    src={
-                                        image.image
-                                            ? (image.image.startsWith("http")
-                                                ? image.image
-                                                : `http://localhost:8000${image.image}`)
-                                            : ""
-                                    }
+                                    src={getImageUrl(image.image)}
                                 />
                             </button>
                         ))}
@@ -223,7 +206,10 @@ export function ProductPage() {
                             <p>
                                 {product.seller?.city || product.ships_from} • {product.seller?.is_verified ? "Verified seller" : "Independent seller"}
                             </p>
-                            <p>Seller rating: {product.seller?.seller_rating || product.average_rating}</p>
+                            <div style={{display: "flex", gap: "6px", alignItems: "center"}}>
+                                <span>{"⭐".repeat(Math.round(product.seller?.seller_rating || 0))}</span>
+                                <span>({product.seller?.seller_rating || 0})</span>
+                            </div>
                             <p>{product.seller?.escrow_policy || "Funds stay protected until buyer acceptance."}</p>
                         </article>
                         <article className="review-card">

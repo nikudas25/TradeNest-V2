@@ -1,5 +1,10 @@
 from django.urls import path
-
+from django.urls import path
+from .views import (
+    CartView,
+    AddToCartView,
+    SubmitSellerRatingView,  # ✅ ADD THIS
+)
 from .views import cashfree_webhook
 
 from .views import (
@@ -43,5 +48,6 @@ urlpatterns = [
     path("newsletter/", NewsletterSubscribeView.as_view(), name="newsletter"),
     path("dashboard/", DashboardOverviewView.as_view(), name="dashboard"),
     path("webhook/cashfree/", cashfree_webhook),
+    path("orders/<str:order_number>/rate/", SubmitSellerRatingView.as_view()),
     path("admin/orders/<str:order_number>/deliver/", AdminMarkDeliveredView.as_view()),
 ]
