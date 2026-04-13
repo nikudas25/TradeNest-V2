@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from django.views.decorators.csrf import csrf_exempt
-from apps.commerce.models import Payment, Order, EscrowTransaction
-
+from apps.commerce.models import Payment, Order, EscrowTransaction, MasterPayment
+from .services import create_cashfree_payout
 
 from apps.catalog.models import Product
 
@@ -260,7 +260,11 @@ class CheckoutView(APIView):
         allocated_discounts = allocate_discount_by_subtotal(group_summaries, totals["discount_total"])
         created_orders = []
 
-        master_payment = None
+        master_payment = MasterPayment.objects.create(
+            user=user,
+            total_amount=0,
+            status="pending"
+        )
 
         for index, group in enumerate(group_summaries):
             order_totals = calculate_totals_for_items(group["items"], discount_total=allocated_discounts[index])
@@ -282,6 +286,7 @@ class CheckoutView(APIView):
                 billing_address=billing_address,
                 notes=payload.get("notes", ""),
                 estimated_delivery=timezone.now().date() + timedelta(days=5),
+                master_payment=master_payment,
             )
 
             for cart_item in group["items"]:
@@ -333,30 +338,14 @@ class CheckoutView(APIView):
         print("CALLING CASHFREE NOW 🚀")
 
         total_amount = sum(order.grand_total for order in created_orders)
+        master_payment.total_amount = total_amount
+        master_payment.save(update_fields=["total_amount"])
         order_ids = [order.order_number for order in created_orders]
-        
-        master_payment = Payment.objects.create(
-            order=created_orders[0],  # link to first order
-            provider="cashfree",
-            status="pending",
-            amount=total_amount,
-            payload={
-                "method": "cashfree",
-                "captured": False,
-                "held_in_escrow": False,
-                "session_key": session_key,
-                "order_ids": order_ids
-            },
-            
-        )
-        
-        print("MASTER PAYMENT CREATED:", master_payment.id)
 
         from .services import create_cashfree_order
         cf_response = create_cashfree_order(
             total_amount,
             request.user,
-            order_ids,
             master_payment
         )  
         print("CASHFREE CALLED ✅")      
@@ -375,13 +364,12 @@ class CheckoutView(APIView):
             "order_count": len(created_orders),
             "grand_total": total_amount,
             "session_key": session_key,
-            "payment_session_id": cf_response.get("payment_session_id"),
-            "order_ids": order_ids
+            "payment_session_id": cf_response.get("payment_session_id")
         }
 
         if master_payment:
             print("MASTER PAYMENT ID:", master_payment.id)
-            print("MASTER PAYMENT ORDER:", master_payment.order.order_number)
+            print("MASTER PAYMENT ORDERS:", [o.order_number for o in master_payment.orders.all()])
         else:
             print("MASTER PAYMENT IS NONE ❌")
             
@@ -473,19 +461,23 @@ class BuyerConfirmReceiptView(APIView):
             payment.save(update_fields=["status", "payload", "updated_at"])
 
         if hasattr(order, "escrow"):
-            order.escrow.status = EscrowTransaction.Status.RELEASED
-            order.escrow.delivered_at = timezone.now()
-            order.escrow.released_at = timezone.now()
-            order.escrow.seller_payout_reference = order.escrow.seller_payout_reference or f"PAYOUT-{order.order_number}"
-            order.escrow.save(
-                update_fields=[
-                    "status",
-                    "delivered_at",
-                    "released_at",
-                    "seller_payout_reference",
-                    "updated_at",
-                ]
-            )
+            escrow = order.escrow
+            escrow.status = EscrowTransaction.Status.RELEASED
+            escrow.delivered_at = timezone.now()
+            escrow.released_at = timezone.now()
+            
+            payout = create_cashfree_payout(order, escrow)
+            
+            if payout["status"] == "success":
+                escrow.payout_status = "processed"
+                escrow.seller_payout_reference = payout["reference"]
+                escrow.payout_response = payout["response"]
+                
+            else:
+                escrow.payout_status = "failed"
+                escrow.payout_response = payout
+                
+            escrow.save()
 
         if order.seller and hasattr(order.seller, "seller_profile"):
             order.seller.seller_profile.total_sales += 1
@@ -642,6 +634,8 @@ from django.db import transaction
 def cashfree_webhook(request):
     data = request.data
     print("Webhook received:", data)
+    print("🔥 WEBHOOK HIT 🔥")
+    print("DATA:", request.data)
 
     try:
         cf_order_id = data["data"]["order"]["order_id"]
@@ -657,25 +651,21 @@ def cashfree_webhook(request):
 
         # 🔒 Lock payment row
         try:
-            payment = Payment.objects.select_for_update().get(
+            master_payment = MasterPayment.objects.select_for_update().get(
                 cashfree_order_id=cf_order_id
             )
         except Payment.DoesNotExist:
             return Response({"error": "Payment not found"}, status=404)
 
         # ✅ Idempotency guard
-        if payment.status == "completed":
+        if master_payment.status == "paid":
             return Response({"message": "Already processed"}, status=200)
 
-        order_ids = payment.payload.get("order_ids", [])
-
-        orders = Order.objects.filter(order_number__in=order_ids)
+        orders = master_payment.orders.all()
 
         # ✅ Update payment
-        payment.status = "completed"
-        payment.payload["captured"] = True
-        payment.payload["held_in_escrow"] = True
-        payment.save(update_fields=["status", "payload", "updated_at"])
+        master_payment.status = "paid"
+        master_payment.save(update_fields=["status", "updated_at"])
 
         for order in orders:
 
@@ -726,3 +716,50 @@ class SubmitSellerRatingView(APIView):
         )
 
         return Response({"message": "Rating submitted successfully"})
+class AdminMarkDeliveredView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, order_number):
+
+        order = get_object_or_404(Order, order_number=order_number)
+
+        if order.status != Order.Status.SHIPPED:
+            return Response({"error": "Order not shipped"}, status=400)
+
+        escrow = getattr(order, "escrow", None)
+        if not escrow:
+            return Response({"error": "Escrow not found"}, status=400)
+
+        # 🔒 Prevent double release
+        if escrow.status == EscrowTransaction.Status.RELEASED:
+            return Response({"error": "Already released"}, status=400)
+
+        # ✅ Mark delivered
+        order.status = Order.Status.COMPLETED
+        order.payment_status = Order.PaymentStatus.RELEASED_TO_SELLER
+        order.save(update_fields=["status", "payment_status", "updated_at"])
+
+        # ✅ Update escrow
+        escrow.status = EscrowTransaction.Status.RELEASED
+        escrow.delivered_at = timezone.now()
+        escrow.released_at = timezone.now()
+
+        
+
+        payout = create_cashfree_payout(order, escrow)
+
+        if payout["status"] == "success":
+            escrow.payout_status = "processed"
+            escrow.seller_payout_reference = payout["reference"]
+            escrow.payout_response = payout["response"]
+        else:
+            escrow.payout_status = "failed"
+            escrow.payout_response = payout
+
+        escrow.save()
+
+        return Response({
+            "message": "Escrow released",
+            "payout_status": escrow.payout_status
+        })

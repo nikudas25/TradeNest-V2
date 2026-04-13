@@ -26,6 +26,7 @@ from .views import (
     WishlistDetailView,
     WishlistView,
     cashfree_webhook,
+    AdminMarkDeliveredView
 )
 
 urlpatterns = [
@@ -48,4 +49,5 @@ urlpatterns = [
     path("dashboard/", DashboardOverviewView.as_view(), name="dashboard"),
     path("webhook/cashfree/", cashfree_webhook),
     path("orders/<str:order_number>/rate/", SubmitSellerRatingView.as_view()),
+    path("admin/orders/<str:order_number>/deliver/", AdminMarkDeliveredView.as_view()),
 ]

@@ -81,6 +81,9 @@ class SellerProfile(TimeStampedModel):
         max_length=255,
         default="Funds stay protected until the buyer confirms the item matches the listing.",
     )
+    account_holder_name = models.CharField(max_length=100, blank=True)
+    bank_account_number = models.CharField(max_length=30, blank=True)
+    ifsc_code = models.CharField(max_length=20, blank=True)
 
     class Meta:
         ordering = ["store_name"]
