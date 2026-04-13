@@ -43,6 +43,9 @@ class SellerProfileSerializer(serializers.ModelSerializer):
             "bio",
             "city",
             "payout_email",
+            "payout_email",
+            "account_holder_name",
+            "bank_account_number",
             "is_verified",
             "seller_rating",
             "total_sales",
@@ -75,6 +78,9 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    account_holder_name = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    bank_account_number = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    ifsc_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
     is_seller = serializers.BooleanField(required=False, default=False)
@@ -93,6 +99,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             "marketing_opt_in",
             "is_seller",
             "store_name",
+            "account_holder_name",
+            "bank_account_number",
+            "ifsc_code",
         ]
 
     def validate(self, attrs):
@@ -112,12 +121,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         while User.objects.filter(username=username).exists():
             suffix += 1
             username = f"{original_username}{suffix}"
+        account_holder_name = validated_data.pop("account_holder_name", None)
+        bank_account_number = validated_data.pop("bank_account_number", None)
+        ifsc_code = validated_data.pop("ifsc_code", None)
         user = User.objects.create_user(username=username, is_seller=is_seller, **validated_data)
         if is_seller:
             SellerProfile.objects.create(
                 user=user,
                 store_name=store_name or user.get_full_name() or user.username,
                 payout_email=user.email,
+                account_holder_name=account_holder_name,
+                bank_account_number=bank_account_number,
+                ifsc_code=ifsc_code,
             )
         return user
 

@@ -1,4 +1,5 @@
 import http
+import token
 import uuid
 from collections import OrderedDict
 from decimal import Decimal, ROUND_HALF_UP
@@ -9,7 +10,7 @@ import requests
 from django.conf import settings
 
 
-def create_cashfree_order(total_amount, user, order_ids, payment):
+def create_cashfree_order(total_amount, user, master_payment):
     url = f"{settings.CASHFREE_BASE_URL}/pg/orders"
 
     headers = {
@@ -23,7 +24,7 @@ def create_cashfree_order(total_amount, user, order_ids, payment):
     cf_order_id = f"cf_{uuid.uuid4().hex[:10]}"
 
     data = {
-        "order_id": cf_order_id,
+        "order_id": cf_order_id,  # ✅ ADD THIS
         "order_amount": float(total_amount),
         "order_currency": "INR",
         "customer_details": {
@@ -42,25 +43,11 @@ def create_cashfree_order(total_amount, user, order_ids, payment):
 
     print("Cashfree response:", res)  # DEBUG
 
-    # 🔥 store everything in payload
+    master_payment.cashfree_order_id = res.get("order_id")
+    master_payment.payment_session_id = res.get("payment_session_id")
+    master_payment.save(update_fields=["cashfree_order_id", "payment_session_id", "updated_at"])
 
-    cf_order_id = res.get("order_id")
-    # ✅ store in dedicated DB field (IMPORTANT)
-    payment.cashfree_order_id = cf_order_id
-    # 🔁 still keep in payload (for debugging + flexibility)
-    payload = payment.payload.copy()
-    payload.update({
-        "cashfree_order_id": cf_order_id,
-        "payment_session_id": res.get("payment_session_id"),
-        "order_ids": order_ids
-    })
-    
-    payment.payload = payload 
-    
-    # ✅ use update_fields for efficiency
-    payment.save(update_fields=["cashfree_order_id", "payload", "updated_at"])
-
-    print("FINAL PAYMENT PAYLOAD:", payment.payload)
+    print("MASTER PAYMENT SAVED:", master_payment.id, master_payment.cashfree_order_id)
 
     return res
 
@@ -208,3 +195,95 @@ def calculate_cart_totals(cart):
         "tax_total": money(tax_total),
         "grand_total": money(grand_total),
     }
+
+def get_cashfree_payout_token():
+    url = "https://sandbox.cashfree.com/payout/v1/authorize"
+
+    headers = {
+        "X-Client-Id": settings.CASHFREE_PAYOUT_CLIENT_ID,
+        "X-Client-Secret": settings.CASHFREE_PAYOUT_CLIENT_SECRET,
+    }
+
+    try:
+        res = requests.post(url, headers=headers, timeout=10)
+        data = res.json()
+
+        print("🔐 AUTH RESPONSE:", data)
+
+        return data.get("data", {}).get("token")
+
+    except Exception as e:
+        print("❌ AUTH ERROR:", str(e))
+        return None
+
+def create_cashfree_payout(order, escrow):
+    url = url = "https://sandbox.cashfree.com/payout/v2/transfer"
+
+    token = get_cashfree_payout_token()
+    
+    if not token:
+        return {
+            "status": "failed",
+            "error": "Auth failed"
+        }
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    seller = order.seller
+    profile = seller.seller_profile
+
+    transfer_id = f"payout_{order.order_number}"
+
+    if not profile.bank_account_number or not profile.ifsc_code:
+        print("❌ Missing bank details for seller:", seller.id)
+        return {
+            "status": "failed",
+            "error": "Seller bank details missing"
+        }
+
+    data = {
+        "transferId": transfer_id,
+        "amount": float(escrow.held_amount),
+        "currency": "INR",
+        "transferMode": "banktransfer",
+        "remarks": f"Payout for {order.order_number}",
+        "beneficiary": {
+            "name": profile.account_holder_name or seller.email,
+            "bankAccount": profile.bank_account_number,
+            "ifsc": profile.ifsc_code,
+            "email": seller.email,
+            "phone": "9999999999",
+            "address1": "Test Address"
+        }
+    }
+    
+    try:
+        print("🚀 INITIATING PAYOUT")
+        print("➡️ URL:", url)
+        print("➡️ DATA:", data)
+        
+        res = requests.post(url, json=data, headers=headers, timeout=10)
+
+        print("📩 RAW RESPONSE STATUS:", res.status_code)
+        print("📩 RAW RESPONSE BODY:", res.text)
+
+        response = res.json()
+
+        print("✅ PARSED RESPONSE:", response)
+
+        return {
+            "status": "success",
+            "reference": transfer_id,
+            "response": response
+        }
+    
+    except Exception as e:
+        print("❌ PAYOUT ERROR:", str(e))
+        
+        return {
+            "status": "failed",
+            "error": str(e)
+        }

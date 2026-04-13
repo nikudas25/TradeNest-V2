@@ -208,6 +208,14 @@ class Order(TimeStampedModel):
         default=PaymentStatus.PENDING,
     )
     payment_method = models.CharField(max_length=40, default="escrow")
+    
+    master_payment = models.ForeignKey(
+        "MasterPayment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders"
+    )
     coupon = models.ForeignKey(
         Coupon,
         on_delete=models.SET_NULL,
@@ -289,6 +297,31 @@ class Payment(TimeStampedModel):
             self.transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
         super().save(*args, **kwargs)
 
+class MasterPayment(TimeStampedModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        FAILED = "failed", "Failed"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="master_payments"
+    )
+
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING
+    )
+
+    cashfree_order_id = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+    payment_session_id = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"MP-{self.id} ({self.status})"
 
 class EscrowTransaction(TimeStampedModel):
     class Status(models.TextChoices):
@@ -322,6 +355,9 @@ class EscrowTransaction(TimeStampedModel):
     released_at = models.DateTimeField(null=True, blank=True)
     dispute_reason = models.CharField(max_length=255, blank=True)
     seller_payout_reference = models.CharField(max_length=80, blank=True)
+    payout_status = models.CharField(max_length=20,default = "pending")
+    payout_response = models.JSONField(default=dict, blank=True)
+
 
     class Meta:
         ordering = ["-created_at"]

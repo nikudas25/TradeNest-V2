@@ -46,8 +46,11 @@ export function AccountPage() {
         password: "",
         confirm_password: "",
         phone_number: "",
-        is_seller: true,
-        //store_name: "",
+        store_name: "",
+        account_holder_name: "",
+        bank_account_number: "",
+        ifsc_code: "",
+        is_seller: false,
     });
 
     const [address, setAddress] = useState(initialAddress);
@@ -81,19 +84,15 @@ export function AccountPage() {
                 } else {
                     const data = await api.verifyOtp(authForm.identifier, otp);
 
-                    console.log("VERIFY RESPONSE:", data);
-
                     const token = data.token || data.key;
 
-                    console.log("TOKEN: ", token);
-
-                    if(!token)
-                    {
+                    if (!token) {
                         setMessage("Login failed: No token received");
                         return;
                     }
 
                     localStorage.setItem("tradenest-auth-token", token);
+
                     
                     await refreshUser();
 
@@ -102,7 +101,18 @@ export function AccountPage() {
                 return;
             }
 
-            await register(authForm);
+            const payload = { ...authForm };
+            
+            // 🔥 REMOVE seller fields if not seller
+            if (!payload.is_seller) {
+                delete payload.store_name;
+                delete payload.account_holder_name;
+                delete payload.bank_account_number;
+                delete payload.ifsc_code;
+            }
+            
+            await register(payload);
+
             setMessage("");
         } catch (error) {
             setMessage(error.message);
@@ -190,21 +200,71 @@ export function AccountPage() {
                                     }
                                 />
                             </div>
-                        </>
-                    ) : (
-                        <input
-                            placeholder="Enter your email"
-                            type="email"
-                            required
-                            value={authForm.identifier}
-                            onChange={(e) =>
-                                setAuthForm((c) => ({...c, identifier: e.target.value}))
-                            }
-                        />
-                    )}
 
-                    {mode === "register" && (
-                        <>
+                            {/* Seller checkbox */}
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={authForm.is_seller}
+                                    onChange={(e) =>
+                                        setAuthForm((c) => ({
+                                            ...c,
+                                            is_seller: e.target.checked,
+                                        }))
+                                    }
+                                />
+                                Register as Seller
+                            </label>
+
+                            {/* Seller fields */}
+                            {authForm.is_seller && (
+                                <>
+                                    <input
+                                        placeholder="Seller store name"
+                                        value={authForm.store_name}
+                                        onChange={(e) =>
+                                            setAuthForm((c) => ({
+                                                ...c,
+                                                store_name: e.target.value,
+                                            }))
+                                        }
+                                    />
+
+                                    <input
+                                        placeholder="Account Holder Name"
+                                        value={authForm.account_holder_name}
+                                        onChange={(e) =>
+                                            setAuthForm((c) => ({
+                                                ...c,
+                                                account_holder_name: e.target.value,
+                                            }))
+                                        }
+                                    />
+
+                                    <input
+                                        placeholder="Bank Account Number"
+                                        value={authForm.bank_account_number}
+                                        onChange={(e) =>
+                                            setAuthForm((c) => ({
+                                                ...c,
+                                                bank_account_number: e.target.value,
+                                            }))
+                                        }
+                                    />
+
+                                    <input
+                                        placeholder="IFSC Code"
+                                        value={authForm.ifsc_code}
+                                        onChange={(e) =>
+                                            setAuthForm((c) => ({
+                                                ...c,
+                                                ifsc_code: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </>
+                            )}
+
                             <input
                                 placeholder="Email address"
                                 type="email"
@@ -249,6 +309,16 @@ export function AccountPage() {
                                 }
                             />
                         </>
+                    ) : (
+                        <input
+                            placeholder="Enter your email"
+                            type="email"
+                            required
+                            value={authForm.identifier}
+                            onChange={(e) =>
+                                setAuthForm((c) => ({...c, identifier: e.target.value}))
+                            }
+                        />
                     )}
 
                     {mode === "login" && otpStep && (
@@ -283,60 +353,99 @@ export function AccountPage() {
     }
 
     return (
-        <div className="page-stack container">
-            <div className="section-heading">
-                <div>
-                    <p className="section-eyebrow">Account</p>
-                    <h1>Your buyer and seller hub</h1>
+    <div className="page-stack container">
+        <div className="section-heading">
+            <div>
+                <p className="section-eyebrow">Account</p>
+                <h1>Your buyer and seller hub</h1>
+            </div>
+        </div>
+
+        {message && <p className="helper-copy">{message}</p>}
+
+        <div className="account-layout">
+
+            {/* PROFILE */}
+            <form className="detail-card" onSubmit={handleProfileSubmit}>
+                <h2>Profile</h2>
+
+                <div className="form-grid">
+                    {Object.entries(profile).map(([field, value]) => (
+                        <input
+                            key={field}
+                            value={value}
+                            placeholder={field.replaceAll("_", " ")}
+                            onChange={(e) =>
+                                setProfile((c) => ({
+                                    ...c,
+                                    [field]: e.target.value,
+                                }))
+                            }
+                        />
+                    ))}
+                </div>
+
+                <button className="button button--secondary">
+                    Save profile
+                </button>
+            </form>
+
+            {/* SELLER SECTION */}
+            <div className="detail-card">
+                <h2>Seller status</h2>
+
+                <div className="address-list">
+                    <article className="address-card">
+                        <strong>
+                            {user?.seller_profile?.store_name ||
+                                (user?.is_seller
+                                    ? "TradeNest seller"
+                                    : "Buyer only account")}
+                        </strong>
+
+                        <p>
+                            {user?.seller_profile?.is_verified
+                                ? "Verified seller"
+                                : user?.is_seller
+                                    ? "Seller profile active"
+                                    : "Create a seller profile"}
+                        </p>
+
+                        <Link to="/sell" className="button button--secondary">
+                            Open seller workspace
+                        </Link>
+                    </article>
                 </div>
             </div>
 
-            {message && <p className="helper-copy">{message}</p>}
+            {/* ADDRESS SECTION (RESTORED) */}
+            <form className="detail-card" onSubmit={handleAddressSubmit}>
+                <h2>Add Address</h2>
 
-            <div className="account-layout">
-                <form className="detail-card" onSubmit={handleProfileSubmit}>
-                    <h2>Profile</h2>
-                    <div className="form-grid">
-                        {Object.entries(profile).map(([field, value]) => (
+                <div className="form-grid">
+                    {Object.entries(address).map(([field, value]) => (
+                        typeof value === "boolean" ? null : (
                             <input
                                 key={field}
                                 value={value}
                                 placeholder={field.replaceAll("_", " ")}
                                 onChange={(e) =>
-                                    setProfile((c) => ({...c, [field]: e.target.value}))
+                                    setAddress((c) => ({
+                                        ...c,
+                                        [field]: e.target.value,
+                                    }))
                                 }
                             />
-                        ))}
-                    </div>
-                    <button className="button button--secondary">
-                        Save profile
-                    </button>
-                </form>
-
-                <div className="detail-card">
-                    <h2>Seller status</h2>
-                    <div className="address-list">
-                        <article className="address-card">
-                            <strong>
-                                {user.seller_profile?.store_name ||
-                                    (user.is_seller
-                                        ? "TradeNest seller"
-                                        : "Buyer only account")}
-                            </strong>
-                            <p>
-                                {user.seller_profile?.is_verified
-                                    ? "Verified seller"
-                                    : user.is_seller
-                                        ? "Seller profile active"
-                                        : "Create a seller profile"}
-                            </p>
-                            <Link to="/sell" className="button button--secondary">
-                                Open seller workspace
-                            </Link>
-                        </article>
-                    </div>
+                        )
+                    ))}
                 </div>
-            </div>
+
+                <button className="button button--secondary">
+                    Save address
+                </button>
+            </form>
+
         </div>
+    </div>
     );
 }
