@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.text import slugify
-
+from django.db.models import Avg
 from utils.models import TimeStampedModel
 
 
@@ -105,3 +105,24 @@ class EmailOTP(models.Model):
         from django.utils.timezone import now
         from datetime import timedelta
         return now() > self.created_at + timedelta(minutes=5)
+
+class SellerRating(TimeStampedModel):
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE)
+    seller = models.ForeignKey(SellerProfile, on_delete=models.CASCADE, related_name="ratings")
+    order = models.OneToOneField("commerce.Order", on_delete=models.CASCADE)
+
+    rating = models.PositiveSmallIntegerField()
+    review = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.buyer} -> {self.seller} ({self.rating})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        avg = self.seller.ratings.aggregate(avg=Avg("rating"))["avg"] or 0
+        self.seller.seller_rating = round(avg, 2)
+        self.seller.save(update_fields=["seller_rating"])

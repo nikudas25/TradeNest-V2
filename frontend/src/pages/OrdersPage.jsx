@@ -1,17 +1,46 @@
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import { useShop } from "../context/ShopContext";
 import { formatCurrency, formatDate } from "../data/formatters";
-
+import { useState } from "react";
 
 export function OrdersPage() {
   const { orders, token, booting, cancelOrder, confirmReceipt, openDispute } = useShop();
 
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState("");
+
   async function handleCancelOrder(orderNumber) {
     try {
       await cancelOrder(orderNumber);
+    } catch {}
+  }
+
+  async function submitRating() {
+    try {
+      const response = await fetch(
+        `/api/orders/${selectedOrder.order_number}/rate/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // change to Token if needed
+          },
+          body: JSON.stringify({
+            rating,
+            review,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error();
+
+      alert("Rating submitted!");
+      setSelectedOrder(null);
+      setRating(5);
+      setReview("");
     } catch {
-      // Flash messaging is handled in shared shop state.
+      alert("Failed to submit rating");
     }
   }
 
@@ -46,78 +75,105 @@ export function OrdersPage() {
   return (
     <div className="page-stack container">
       <div className="section-heading">
-        <div>
-          <p className="section-eyebrow">Orders</p>
-          <h1>Buyer orders and escrow status</h1>
-        </div>
+        <h1>Your Orders</h1>
       </div>
 
       <div className="order-list">
         {orders.map((order) => (
           <article className="order-card" key={order.order_number}>
-            <div className="row-between">
-              <div>
-                <strong>{order.order_number}</strong>
-                <p>{formatDate(order.placed_at)}</p>
-                {order.seller_name ? <p>Seller: {order.seller_name}</p> : null}
-              </div>
-              <div className="order-status-group">
-                <span className="detail-chip">{order.status}</span>
-                <span className="detail-chip">{order.escrow?.status || order.payment_status}</span>
-              </div>
+            <div>
+              <strong>{order.order_number}</strong>
+              <p>{formatDate(order.placed_at)}</p>
+              <p>Seller: {order.seller_name}</p>
+              <p>Status: {order.status}</p>
+              <p>Total: {formatCurrency(order.grand_total)}</p>
             </div>
-            <div className="summary-row">
-              <span>Total</span>
-              <strong>{formatCurrency(order.grand_total)}</strong>
-            </div>
-            <div className="summary-row">
-              <span>Items</span>
-              <strong>{order.items?.length || 0}</strong>
-            </div>
-            {order.escrow ? (
-              <div className="summary-row">
-                <span>Escrow held</span>
-                <strong>{formatCurrency(order.escrow.held_amount)}</strong>
-              </div>
-            ) : null}
-            <div className="order-line-items">
-              {(order.items || []).slice(0, 3).map((item) => (
-                <div className="summary-row" key={`${order.order_number}-${item.id}`}>
-                  <span>
-                    {item.product_name} × {item.quantity}
-                  </span>
-                  <strong>{formatCurrency(item.line_total)}</strong>
-                </div>
-              ))}
-            </div>
-            {["pending", "awaiting_shipment"].includes(order.status) ? (
+
+            {/* Cancel */}
+            {["pending", "awaiting_shipment"].includes(order.status) && (
+              <button
+                className="button button--ghost"
+                onClick={() => handleCancelOrder(order.order_number)}
+              >
+                Cancel Order
+              </button>
+            )}
+
+            {/* Shipped */}
+            {order.status === "shipped" && (
               <div className="hero-actions">
                 <button
-                  className="button button--ghost"
-                  onClick={() => handleCancelOrder(order.order_number)}
-                  type="button"
+                  className="button button--secondary"
+                  onClick={() => confirmReceipt(order.order_number)}
                 >
-                  Cancel order
+                  Confirm Receipt
                 </button>
-              </div>
-            ) : null}
-            {order.status === "shipped" ? (
-              <div className="hero-actions">
-                <button className="button button--secondary" onClick={() => confirmReceipt(order.order_number)} type="button">
-                  Confirm receipt
-                </button>
+
                 <button
                   className="button button--ghost"
-                  onClick={() => openDispute(order.order_number, "Buyer reported an issue with the delivered item.")}
-                  type="button"
+                  onClick={() =>
+                    openDispute(order.order_number, "Issue with item")
+                  }
                 >
-                  Open dispute
+                  Open Dispute
                 </button>
               </div>
-            ) : null}
+            )}
+
+            {/* Completed → Show Rating */}
+            {order.status === "completed" && (
+              <button
+                className="button button--primary"
+                onClick={() => setSelectedOrder(order)}
+              >
+                ⭐ Rate Seller
+              </button>
+            )}
           </article>
         ))}
       </div>
+
+      {/* Rating Modal */}
+      {selectedOrder && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Rate Seller</h3>
+
+            <select
+              value={rating}
+              onChange={(e) => setRating(Number(e.target.value))}
+            >
+              <option value={5}>5 ⭐</option>
+              <option value={4}>4 ⭐</option>
+              <option value={3}>3 ⭐</option>
+              <option value={2}>2 ⭐</option>
+              <option value={1}>1 ⭐</option>
+            </select>
+
+            <textarea
+              placeholder="Write a review (optional)"
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+            />
+
+            <div className="hero-actions">
+              <button
+                className="button button--primary"
+                onClick={submitRating}
+              >
+                Submit
+              </button>
+
+              <button
+                className="button button--ghost"
+                onClick={() => setSelectedOrder(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

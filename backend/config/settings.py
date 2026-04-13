@@ -145,9 +145,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 CSRF_TRUSTED_ORIGINS = get_list("CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", "store@example.com")
+DEFAULT_FROM_EMAIL = get_env("DEFAULT_FROM_EMAIL", "noreply@tradenest.com")
 FRONTEND_BASE_URL = get_env("FRONTEND_BASE_URL", "http://localhost:5173")
-
 CASHFREE_CLIENT_ID = os.getenv("CASHFREE_CLIENT_ID")
 CASHFREE_CLIENT_SECRET = os.getenv("CASHFREE_CLIENT_SECRET")
 CASHFREE_BASE_URL = os.getenv("CASHFREE_BASE_URL", "https://sandbox.cashfree.com")

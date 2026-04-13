@@ -220,6 +220,7 @@ class OrderSerializer(serializers.ModelSerializer):
     escrow = EscrowTransactionSerializer(read_only=True)
     seller_name = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
+    seller_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -248,6 +249,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "items",
             "payments",
             "escrow",
+            "seller_rating",
         ]
 
     def get_seller_name(self, obj):
@@ -261,6 +263,11 @@ class OrderSerializer(serializers.ModelSerializer):
         return bool(
             obj.seller and hasattr(obj.seller, "seller_profile") and obj.seller.seller_profile.is_verified
         )
+
+    def get_seller_rating(self, obj):
+        if obj.seller and hasattr(obj.seller, "seller_profile"):
+            return obj.seller.seller_profile.seller_rating
+        return 0
 
 
 class NewsletterSubscriberSerializer(serializers.ModelSerializer):
