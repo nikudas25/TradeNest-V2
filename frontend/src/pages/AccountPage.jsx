@@ -93,6 +93,7 @@ export function AccountPage() {
 
                     localStorage.setItem("tradenest-auth-token", token);
 
+                    
                     await refreshUser();
 
                     window.location.href = "/account";
