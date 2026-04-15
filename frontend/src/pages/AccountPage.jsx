@@ -34,7 +34,7 @@ export function AccountPage() {
     const [message, setMessage] = useState("");
     const [otp, setOtp] = useState("");
     const [otpStep, setOtpStep] = useState(false);
-
+    const [addresses, setAddresses] = useState([]);
     const [profile, setProfile] = useState(initialProfile);
 
     const [authForm, setAuthForm] = useState({
@@ -67,6 +67,22 @@ export function AccountPage() {
         }
     }, [user]);
 
+    async function fetchAddresses() {
+        try {
+            const data = await api.getAddresses();
+            console.log(data);
+            setAddresses(data.results);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    useEffect(() => {
+        if (user) {
+            fetchAddresses();
+        }
+    }, [user]);
+
     async function handleAuthSubmit(event) {
         event.preventDefault();
 
@@ -93,7 +109,7 @@ export function AccountPage() {
 
                     localStorage.setItem("tradenest-auth-token", token);
 
-                    
+
                     await refreshUser();
 
                     window.location.href = "/account";
@@ -101,8 +117,8 @@ export function AccountPage() {
                 return;
             }
 
-            const payload = { ...authForm };
-            
+            const payload = {...authForm};
+
             // 🔥 REMOVE seller fields if not seller
             if (!payload.is_seller) {
                 delete payload.store_name;
@@ -110,7 +126,7 @@ export function AccountPage() {
                 delete payload.bank_account_number;
                 delete payload.ifsc_code;
             }
-            
+
             await register(payload);
 
             setMessage("");
@@ -133,6 +149,11 @@ export function AccountPage() {
         event.preventDefault();
         try {
             await saveAddress(address);
+
+            const data = await
+                api.getAddresses();
+            setAddresses(data.results);
+
             setAddress(initialAddress);
             setMessage("Address saved.");
         } catch (error) {
@@ -353,99 +374,135 @@ export function AccountPage() {
     }
 
     return (
-    <div className="page-stack container">
-        <div className="section-heading">
-            <div>
-                <p className="section-eyebrow">Account</p>
-                <h1>Your buyer and seller hub</h1>
-            </div>
-        </div>
-
-        {message && <p className="helper-copy">{message}</p>}
-
-        <div className="account-layout">
-
-            {/* PROFILE */}
-            <form className="detail-card" onSubmit={handleProfileSubmit}>
-                <h2>Profile</h2>
-
-                <div className="form-grid">
-                    {Object.entries(profile).map(([field, value]) => (
-                        <input
-                            key={field}
-                            value={value}
-                            placeholder={field.replaceAll("_", " ")}
-                            onChange={(e) =>
-                                setProfile((c) => ({
-                                    ...c,
-                                    [field]: e.target.value,
-                                }))
-                            }
-                        />
-                    ))}
-                </div>
-
-                <button className="button button--secondary">
-                    Save profile
-                </button>
-            </form>
-
-            {/* SELLER SECTION */}
-            <div className="detail-card">
-                <h2>Seller status</h2>
-
-                <div className="address-list">
-                    <article className="address-card">
-                        <strong>
-                            {user?.seller_profile?.store_name ||
-                                (user?.is_seller
-                                    ? "TradeNest seller"
-                                    : "Buyer only account")}
-                        </strong>
-
-                        <p>
-                            {user?.seller_profile?.is_verified
-                                ? "Verified seller"
-                                : user?.is_seller
-                                    ? "Seller profile active"
-                                    : "Create a seller profile"}
-                        </p>
-
-                        <Link to="/sell" className="button button--secondary">
-                            Open seller workspace
-                        </Link>
-                    </article>
+        <div className="page-stack container">
+            <div className="section-heading">
+                <div>
+                    <p className="section-eyebrow">Account</p>
+                    <h1>Your buyer and seller hub</h1>
                 </div>
             </div>
 
-            {/* ADDRESS SECTION (RESTORED) */}
-            <form className="detail-card" onSubmit={handleAddressSubmit}>
-                <h2>Add Address</h2>
+            {message && <p className="helper-copy">{message}</p>}
 
-                <div className="form-grid">
-                    {Object.entries(address).map(([field, value]) => (
-                        typeof value === "boolean" ? null : (
+            <div className="account-layout">
+
+                {/* PROFILE */}
+                <form className="detail-card" onSubmit={handleProfileSubmit}>
+                    <h2>Profile</h2>
+
+                    <div className="form-grid">
+                        {Object.entries(profile).map(([field, value]) => (
                             <input
                                 key={field}
                                 value={value}
                                 placeholder={field.replaceAll("_", " ")}
                                 onChange={(e) =>
-                                    setAddress((c) => ({
+                                    setProfile((c) => ({
                                         ...c,
                                         [field]: e.target.value,
                                     }))
                                 }
                             />
-                        )
-                    ))}
+                        ))}
+                    </div>
+
+                    <button className="button button--secondary">
+                        Save profile
+                    </button>
+                </form>
+
+                {/* SELLER SECTION */}
+                <div className="detail-card">
+                    <h2>Seller status</h2>
+
+                    <div className="address-list">
+                        <article className="address-card">
+                            <strong>
+                                {user?.seller_profile?.store_name ||
+                                    (user?.is_seller
+                                        ? "TradeNest seller"
+                                        : "Buyer only account")}
+                            </strong>
+
+                            <p>
+                                {user?.seller_profile?.is_verified
+                                    ? "Verified seller"
+                                    : user?.is_seller
+                                        ? "Seller profile active"
+                                        : "Create a seller profile"}
+                            </p>
+
+                            <Link to="/sell" className="button button--secondary">
+                                Open seller workspace
+                            </Link>
+                        </article>
+                    </div>
                 </div>
 
-                <button className="button button--secondary">
-                    Save address
-                </button>
-            </form>
+                {/* ADDRESS SECTION (RESTORED) */}
+                <form className="detail-card" onSubmit={handleAddressSubmit}>
+                    <h2>Add Address</h2>
 
+                    <div className="form-grid">
+                        {Object.entries(address).map(([field, value]) => (
+                            typeof value === "boolean" ? null : (
+                                <input
+                                    key={field}
+                                    value={value}
+                                    placeholder={field.replaceAll("_", " ")}
+                                    onChange={(e) =>
+                                        setAddress((c) => ({
+                                            ...c,
+                                            [field]: e.target.value,
+                                        }))
+                                    }
+                                />
+                            )
+                        ))}
+                    </div>
+
+                    <button className="button button--secondary">
+                        Save address
+                    </button>
+                </form>
+
+                <div className="detail-card">
+                    <h2>Saved Addresses</h2>
+
+                    {addresses.length === 0 ? (
+                        <p>No addresses found</p>
+                    ) : (
+                        <div className="address-list">
+                            {addresses.map(addr => (
+                                <div key={addr.id} className="address-card">
+                                    <strong>{addr.label}</strong>
+                                    <p>{addr.recipient_name}</p>
+                                    <p>{addr.formatted}</p>
+                                    
+                                    <button
+                                        onClick={async () => {
+                                        if (!window.confirm("Delete this address?")) return;
+
+                                        try {
+                                            await api.deleteAddress(addr.id);
+
+                                            setAddresses(prev => prev.filter(a => a.id !== addr.id));
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Failed to delete address");
+                                        }
+                                    }}
+                                        className="button button--danger"
+                                        >
+                                        Delete Address
+                                </button>
+                                </div>
+                                ))}
+                        </div>
+                        )}
+                </div>
+
+            </div>
         </div>
-    </div>
     );
 }
