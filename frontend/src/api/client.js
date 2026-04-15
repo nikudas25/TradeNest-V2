@@ -127,6 +127,11 @@ async function request(path, options = {}) {
 
 
 export const api = {
+
+    deleteAddress: (id) => request(`/auth/addresses/${id}/`, {
+        method: "DELETE"
+    }),
+
     requestOtp(email) {
         return request("/auth/request-otp/", {
             method: "POST",
