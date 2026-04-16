@@ -9,6 +9,7 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState("");
+  const [filter, setFilter] = useState("all");
 
   async function handleCancelOrder(orderNumber) {
     try {

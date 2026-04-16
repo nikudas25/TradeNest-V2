@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api, authStore } from "../api/client";
 import { buildFallbackProduct, fallbackHomeData, fallbackProducts } from "../data/fallbackStore";
 
-
 const ShopContext = createContext(null);
 const LOCAL_CART_KEY = "tradenest-local-cart";
 const LOCAL_WISHLIST_KEY = "tradenest-local-wishlist";
@@ -673,7 +672,9 @@ export function ShopProvider({ children }) {
   }
 
   function getProductFallback(slug) {
-    return buildFallbackProduct(slug);
+  return fallbackProducts.find(
+      (p) => String(p.id) === String(slug) || p.slug === slug
+    );
   }
 
   return (

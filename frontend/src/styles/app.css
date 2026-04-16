@@ -754,13 +754,14 @@ img {
 }
 
 .product-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns:  repeat(auto-fit, minmax(220px, 260px));
+  justify-content: start;
 }
 
 .product-card {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-xl);
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.74);
   box-shadow: var(--shadow-md);
 }
@@ -795,12 +796,15 @@ img {
 .product-media {
   position: relative;
   overflow: hidden;
+  border-radius: 12px;
 }
 
 .product-media img {
   width: 100%;
+  height: 220px;
   aspect-ratio: 0.92;
   object-fit: cover;
+  border-radius: 12px;
   transition: transform 0.3s ease;
 }
 
@@ -1832,3 +1836,5 @@ img {
   object-fit: cover;
   border-radius: 6px;
 }
+
+

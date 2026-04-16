@@ -55,6 +55,18 @@ export function ProductPage() {
                 }
             } catch {
                 const fallbackProduct = getProductFallback(slug);
+                  console.log("Fallback product:", fallbackProduct);
+
+                        if (!fallbackProduct) {
+                            setProduct({
+                                id: slug,
+                                name: "Product not found",
+                                price: 0,
+                                images:null,
+                            });
+                            return;
+                        }
+
                 setProduct(fallbackProduct);
 
                 const fallbackImage =
@@ -103,7 +115,10 @@ export function ProductPage() {
         return <div className="container empty-panel">Loading product...</div>;
     }
 
-    const displayPrice = selectedVariant?.effective_price || product.current_price || product.price;
+    const displayPrice =  selectedVariant?.effective_price ??
+                            product.current_price ??
+                            product.price ??
+                            0;
 
     return (
         <div className="page-stack container">

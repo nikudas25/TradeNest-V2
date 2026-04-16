@@ -5,8 +5,41 @@ import { api } from "../api/client";
 import { ProductCard } from "../components/ProductCard";
 import { SectionHeading } from "../components/SectionHeading";
 import { useShop } from "../context/ShopContext";
-import { fallbackBrands, fallbackCategories, fallbackProducts } from "../data/fallbackStore";
-
+import { fallbackBrands, fallbackCategories } from "../data/fallbackStore";
+import jordanShoes from "../assets/product-image/jordanShoes.webp";
+import Headphone from "../assets/product-image/Headphone.webp";
+import leatherToteBag from "../assets/product-image/leatherToteBag.webp";
+import watch from "../assets/product-image/watch.webp";
+export const fallbackProducts = [
+    {
+    id: 1,
+    slug:"1",
+    name: "Jordan 1 Retro High",
+    image: jordanShoes,
+    price: 12999
+  },
+  {
+    id: 2,
+    slug:"2",
+    name: "Sony WH-1000XM5",
+    image: Headphone,
+    price: 24999
+  },
+  {
+    id: 3,
+    slug:"3",
+    name: "Leather Tote Bag",
+    image: leatherToteBag,
+    price: 3499
+  },
+  {
+    id: 4,
+    slug:"4",
+    name: "Watch",
+    image: watch,
+    price: 5999
+  }
+];
 
 function unwrapResults(payload) {
   if (Array.isArray(payload)) {
@@ -27,12 +60,12 @@ function filterFallbackProducts(searchParams) {
   const sort = searchParams.get("sort");
 
   if (query) {
-    products = products.filter((item) =>
-      [item.name, item.short_description, item.category, item.brand].some((field) =>
-        field.toLowerCase().includes(query),
-      ),
-    );
-  }
+  products = products.filter((item) =>
+    [item.name, item.short_description, item.category, item.brand].some((field) =>
+      (field || "").toLowerCase().includes(query)
+    )
+  );
+}
   if (category) {
     products = products.filter((item) => item.category_slug === category);
   }
