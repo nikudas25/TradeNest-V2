@@ -149,7 +149,7 @@ export function ShopPage() {
   return (
     <div className="page-stack container">
       <SectionHeading
-        eyebrow="Browse"
+        // eyebrow="Browse"
         description="Search, sort, and filter seller-owned listings by category, brand, price, and item condition."
         title="TradeNest marketplace"
       />

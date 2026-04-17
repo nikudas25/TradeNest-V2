@@ -69,9 +69,9 @@ export function ProductCard({product, onAddToCart, onToggleWishlist, inWishlist 
                     >
                     <CartIcon size={18} />
                     </button>
-                    <Link className="button button--ghost" to={`/product/${product.id}`}>
-                        View
-                    </Link>
+                        <Link className="button button--ghost" to={`/product/${product.slug}`}>                       
+                        View               
+                      </Link>
                 </div>
             </div>
         </article>

@@ -5,6 +5,7 @@ import {ProductCard} from "../components/ProductCard";
 import {SectionHeading} from "../components/SectionHeading";
 import {useShop} from "../context/ShopContext";
 import {ShieldIcon, TruckIcon} from "../components/Icons";
+import { BuyerOrderIcon, SellerShipIcon, PaymentReleasedIcon } from "../components/Icons";
 
 
 export function HomePage() {
@@ -44,6 +45,8 @@ export function HomePage() {
 
         return () => clearInterval(interval);
     }, []);
+
+    // console.log("HOME PRODUCTS:", homeData.featured_products);
 
     return (
         <div className="page-stack">
@@ -102,7 +105,7 @@ export function HomePage() {
                 <SectionHeading
                     actionLabel="Browse listings"
                     actionTo="/shop"
-                    eyebrow="Market segments"
+                    // eyebrow="Market segments"
                     description="Guide buyers into collectible, vintage, and open-box inventory with category-led discovery."
                     title="Featured categories"
                 />
@@ -111,10 +114,12 @@ export function HomePage() {
                         <Link className="category-card" key={category.slug} to={`/shop?category=${category.slug}`}>
                             <img
                                 alt={category.name}
-                                src={
+                               src={
                                     category.image
-                                        ? `http://localhost:8000${category.image}`
-                                        : "https://via.placeholder.com/300"
+                                        ? `http://localhost:8000${category.image}` // backend image
+                                        : category.image_url
+                                            ? `${category.image_url}?auto=format&fit=crop&w=500&q=80` // fallback image
+                                            : "https://via.placeholder.com/300"
                                 }
                             />
                             <div>
@@ -128,7 +133,7 @@ export function HomePage() {
 
             <section className="container">
                 <SectionHeading
-                    eyebrow="Verified picks"
+                    // eyebrow="Verified picks"
                     description="Each listing surfaces condition, seller identity, and escrow protection before checkout."
                     title={booting ? "Loading resale inventory..." : "Marketplace-ready listing grid"}
                 />
@@ -139,37 +144,43 @@ export function HomePage() {
                             key={product.id}
                             onAddToCart={addToCart}
                             onToggleWishlist={toggleWishlist}
-                            product={product}
+                            product={{
+                                ...product,
+                                image:
+                                    product.image ||
+                                    product.primary_image ||
+                                    product.images?.[0]?.image ||
+                                    product.images?.[0]?.image_url ||
+                                    product.thumbnail_url
+                            }}
                         />
                     ))}
                 </div>
             </section>
 
-            <section className="container spotlight-section">
-                <div className="spotlight-copy">
-                    <p className="section-eyebrow">Why TradeNest works</p>
-                    <h2>Trust is treated like a product feature, not a footnote after checkout.</h2>
-                    <p>
-                        Buyers can inspect seller credibility, item condition, and authenticity status before paying.
-                        Sellers get a premium listing surface without having to convince every buyer manually.
-                    </p>
-                    <div className="brand-pill-row">
-                        {(homeData.featured_brands || []).map((brand) => (
-                            <span className="brand-pill" key={brand.slug}>
-                {brand.name}
-              </span>
-                        ))}
-                    </div>
-                </div>
-                <div className="testimonial-stack">
-                    {(homeData.testimonials || []).map((item) => (
-                        <article className="testimonial-card" key={item.id}>
-                            <p>{item.quote}</p>
-                            <strong>{item.author}</strong>
-                        </article>
-                    ))}
-                </div>
-            </section>
+             <section className="container escrow-section">
+          <h2>How Escrow Works</h2>
+
+          <div className="escrow-grid">
+            <div className="escrow-card">
+              <BuyerOrderIcon size={52} />
+              <h3>1. Buyer Pays Securely</h3>
+              <p>The buyer makes a payment which is held safely in escrow.</p>
+            </div>
+
+            <div className="escrow-card">
+              <SellerShipIcon size={52} />
+              <h3>2. Seller Ships Item</h3>
+              <p>The seller ships the product after payment confirmation.</p>
+            </div>
+
+            <div className="escrow-card">
+              <PaymentReleasedIcon size={52} />
+              <h3>3. Payment Released</h3>
+              <p>Funds are released to the seller after buyer approval.</p>
+            </div>
+          </div>
+        </section>
         </div>
     );
 }

@@ -137,3 +137,65 @@ export function SparkIcon(props) {
   );
 }
 
+export function SignOutIcon(props) {
+  return (
+    <IconBase {...props}>
+      {/* Door / box */}
+      <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />
+      
+      {/* Arrow going out */}
+      <path d="M15 12H9" />
+      <path d="m12 9 3 3-3 3" />
+    </IconBase>
+  );
+}
+
+export function BuyerOrderIcon(props) {
+  return (
+    <IconBase {...props}>
+      {/* Shopping bag */}
+      <path d="M6 8h12l-1 11H7L6 8z" />
+      
+      {/* Bag handles */}
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+      
+      {/* Plus sign (placing order action) */}
+      <path d="M12 11v4" />
+      <path d="M10 13h4" />
+    </IconBase>
+  );
+}
+
+export function SellerShipIcon(props) {
+  return (
+    <IconBase {...props}>
+      {/* Truck body */}
+      <path d="M3 13h11v5H3z" />
+
+      {/* Truck cabin */}
+      <path d="M14 15h4l2 2v1h-6z" />
+
+      {/* Wheels */}
+      <circle cx="7" cy="19" r="1.5" />
+      <circle cx="17" cy="19" r="1.5" />
+
+      {/* Motion line (shipping) */}
+      <path d="M3 10h6" />
+    </IconBase>
+  );
+}
+
+export function PaymentReleasedIcon(props) {
+  return (
+    <IconBase {...props}>
+      {/* Money / note */}
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+
+      {/* Currency circle */}
+      <circle cx="12" cy="12" r="3" />
+
+      {/* Check mark (payment success) */}
+      <path d="m9 12 2 2 4-4" />
+    </IconBase>
+  );
+}

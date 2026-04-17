@@ -40,7 +40,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div>
+        <div className="footer-newsletter">
           <h4>Stay in the loop</h4>
           <form className="newsletter-form" onSubmit={handleSubmit}>
             <div className="subscribe-box">

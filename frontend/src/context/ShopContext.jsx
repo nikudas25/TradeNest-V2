@@ -306,8 +306,21 @@ export function ShopProvider({ children }) {
     setBooting(true);
     try {
       const home = await api.getHome();
-      setHomeData({ ...fallbackHomeData, ...(home || {}) });
-    } catch {
+        setHomeData({
+          ...fallbackHomeData,
+          ...(home || {}),
+          featured_categories: (home?.featured_categories || fallbackHomeData.featured_categories).map((cat, index) => {
+            const fallbackCat = fallbackHomeData.featured_categories[index];
+
+            return {
+              ...fallbackCat,
+              ...cat,
+              image: cat.image || fallbackCat.image || fallbackCat.image_url,
+            };
+          }),
+        });  
+        }
+    catch {
       setHomeData(fallbackHomeData);
     }
 
