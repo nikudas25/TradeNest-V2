@@ -9,12 +9,17 @@ import {formatCurrency, formatDate} from "../data/formatters";
 
 export function ProductPage() {
 
-    function getImageUrl(path) {
-        if (!path) return null;
-        return path.startsWith("http")
-            ? path
-            : `http://localhost:8000${path}`;
+   function getImageUrl(path) {
+    if (!path) return "https://via.placeholder.com/400";
+
+    if (typeof path !== "string") return "https://via.placeholder.com/400";
+
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+        return path;
     }
+
+    return `http://localhost:8000${path}`;
+}
 
     const {slug} = useParams();
     const {
@@ -38,16 +43,18 @@ export function ProductPage() {
                 const data = await api.getProduct(slug);
                 console.log("PRODUCT DATA:", data);
 
+                const normalizedImages = (data.images || [])
+                    .map((img) => getImageUrl(img.image_url || img.image))
+                    .filter(Boolean);
+
                 setProduct(data);
+                setSelectedImage(
+                    normalizedImages[0] ||
+                    getImageUrl(data.primary_image || data.thumbnail_url)
+                );
+                setSelectedVariant(data.variants?.[0] || null);
 
-                const imageUrl =
-                    data.images?.length > 0
-                        ? data.images[0].image
-                        : data.primary_image || null;
-
-                setSelectedImage(imageUrl);
-
-                setSelectedImage(imageUrl || null);
+                setSelectedImage(getImageUrl(firstImage));
                 setSelectedVariant(data.variants?.[0] || null);
 
                 if (data.id) {
@@ -55,14 +62,27 @@ export function ProductPage() {
                 }
             } catch {
                 const fallbackProduct = getProductFallback(slug);
+                  console.log("Fallback product:", fallbackProduct);
+
+                        if (!fallbackProduct) {
+                            setProduct({
+                                id: slug,
+                                name: "Product not found",
+                                price: 0,
+                                images:null,
+                            });
+                            return;
+                        }
+
+               const fallbackImages = (fallbackProduct.images || [])
+                    .map((img) => getImageUrl(img.image_url || img.image))
+                    .filter(Boolean);
+
                 setProduct(fallbackProduct);
-
-                const fallbackImage =
-                    fallbackProduct?.images?.length > 0
-                        ? fallbackProduct.images[0].image
-                        : fallbackProduct?.primary_image || null;
-
-                setSelectedImage(fallbackImage);
+                setSelectedImage(
+                    fallbackImages[0] ||
+                    getImageUrl(fallbackProduct.primary_image || fallbackProduct.thumbnail_url)
+                );
                 setSelectedVariant(fallbackProduct?.variants?.[0] || null);
             }
         }
@@ -103,7 +123,10 @@ export function ProductPage() {
         return <div className="container empty-panel">Loading product...</div>;
     }
 
-    const displayPrice = selectedVariant?.effective_price || product.current_price || product.price;
+    const displayPrice =  selectedVariant?.effective_price ??
+                            product.current_price ??
+                            product.price ??
+                            0;
 
     return (
         <div className="page-stack container">
@@ -113,23 +136,27 @@ export function ProductPage() {
                         <img
                             className="product-main-image"
                             alt={product.name}
-                            src={getImageUrl(selectedImage)}
+                            src={selectedImage || "https://via.placeholder.com/400"}
                         />
                     </div>
                     <div className="product-gallery-thumbs">
-                        {(product.images || []).map((image) => (
-                            <button
-                                className="thumb"
-                                key={image.id}
-                                onClick={() => setSelectedImage(getImageUrl(image.image))}
-                                type="button"
-                            >
-                                <img
-                                    alt={product.name}
-                                    src={getImageUrl(image.image)}
-                                />
-                            </button>
-                        ))}
+                       {(product.images || []).map((image, index) => {
+                            const thumbSrc = getImageUrl(image.image_url || image.image);
+
+                            return (
+                                <button
+                                    className="thumb"
+                                    key={image.id || index}
+                                    onClick={() => setSelectedImage(thumbSrc)}
+                                    type="button"
+                                >
+                                    <img
+                                        alt={product.name}
+                                        src={thumbSrc}
+                                    />
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -250,16 +277,22 @@ export function ProductPage() {
                             placeholder="Review title"
                             value={review.title}
                         />
-                        <select
-                            onChange={(event) => setReview((current) => ({...current, rating: event.target.value}))}
-                            value={review.rating}
-                        >
-                            <option value={5}>5 stars</option>
-                            <option value={4}>4 stars</option>
-                            <option value={3}>3 stars</option>
-                            <option value={2}>2 stars</option>
-                            <option value={1}>1 star</option>
-                        </select>
+                        <div className="star-rating">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                    key={star}
+                                    className={star <= review.rating ? "star active" : "star"}
+                                    onClick={() =>
+                                        setReview((current) => ({
+                                            ...current,
+                                            rating: star,
+                                        }))
+                                    }
+                                >
+                                    ★
+                                </span>
+                            ))}
+                        </div>
                         <textarea
                             onChange={(event) => setReview((current) => ({...current, body: event.target.value}))}
                             placeholder="What stood out?"

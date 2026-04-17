@@ -4,7 +4,7 @@ import logo from "../logo.png";
 import {useShop} from "../context/ShopContext";
 import {formatCurrency} from "../data/formatters";
 import {CartIcon, HeartIcon, SearchIcon, SparkIcon, UserIcon, TruckIcon} from "./Icons";
-import {HomeIcon, BrowseIcon, SellIcon} from "./Icons";
+import {HomeIcon, BrowseIcon, SellIcon, SignOutIcon} from "./Icons";
 
 const navItems = [
     {label: "Home", to: "/"},
@@ -13,6 +13,22 @@ const navItems = [
     {label: "Wishlist", to: "/wishlist"},
     {label: "Orders", to: "/orders"},
 ];
+function getImageUrl(path) {
+    if (!path) return "https://via.placeholder.com/80";
+
+    if (typeof path !== "string") return "https://via.placeholder.com/80";
+
+    if (
+        path.startsWith("http://") ||
+        path.startsWith("https://") ||
+        path.startsWith("/assets/") ||
+        path.startsWith("data:")
+    ) {
+        return path;
+    }
+
+    return `http://localhost:8000${path}`;
+}
 
 
 export function Header() {
@@ -130,15 +146,15 @@ export function Header() {
                                     <>
                                         {cart.items.slice(0, 3).map((item) => (
                                             <div className="cart-dropdown-item" key={item.id}>
-                                                <img
+                                               <img
                                                     alt={item.product.name}
-                                                    src={
-                                                        item.product.images?.length > 0
-                                                            ? `http://localhost:8000${item.product.images[0].image}`
-                                                            : item.product.primary_image
-                                                                ? `http://localhost:8000${item.product.primary_image}`
-                                                                : ""
-                                                    }
+                                                    src={getImageUrl(
+                                                        item.product?.image ||
+                                                        item.product?.primary_image ||
+                                                        item.product?.images?.[0]?.image_url ||
+                                                        item.product?.images?.[0]?.image ||
+                                                        item.product?.thumbnail_url
+                                                    )}
                                                 />
                                                 <div className="cart-dropdown-item-copy">
                                                     <strong>{item.product.name}</strong>
@@ -217,6 +233,7 @@ export function Header() {
                                         }}
                                         type="button"
                                     >
+                                        <SignOutIcon size={16} />
                                         Sign out
                                     </button>
                                 )}

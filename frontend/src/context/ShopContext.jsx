@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { api, authStore } from "../api/client";
 import { buildFallbackProduct, fallbackHomeData, fallbackProducts } from "../data/fallbackStore";
 
-
 const ShopContext = createContext(null);
 const LOCAL_CART_KEY = "tradenest-local-cart";
 const LOCAL_WISHLIST_KEY = "tradenest-local-wishlist";
@@ -307,8 +306,21 @@ export function ShopProvider({ children }) {
     setBooting(true);
     try {
       const home = await api.getHome();
-      setHomeData({ ...fallbackHomeData, ...(home || {}) });
-    } catch {
+        setHomeData({
+          ...fallbackHomeData,
+          ...(home || {}),
+          featured_categories: (home?.featured_categories || fallbackHomeData.featured_categories).map((cat, index) => {
+            const fallbackCat = fallbackHomeData.featured_categories[index];
+
+            return {
+              ...fallbackCat,
+              ...cat,
+              image: cat.image || fallbackCat.image || fallbackCat.image_url,
+            };
+          }),
+        });  
+        }
+    catch {
       setHomeData(fallbackHomeData);
     }
 
@@ -673,7 +685,9 @@ export function ShopProvider({ children }) {
   }
 
   function getProductFallback(slug) {
-    return buildFallbackProduct(slug);
+  return fallbackProducts.find(
+      (p) => String(p.id) === String(slug) || p.slug === slug
+    );
   }
 
   return (
